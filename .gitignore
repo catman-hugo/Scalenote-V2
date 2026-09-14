@@ -1,0 +1,36 @@
+# Node / frontend
+node_modules/
+dist/
+.vite/
+*.log
+npm-debug.log*
+
+# Rust / Tauri
+target/
+src-tauri/target/
+Cargo.lock.bak
+
+# Tauri build output
+apps/desktop/release/
+src-tauri/gen/schemas/
+
+# Environment / secrets — never commit real values
+.env
+.env.local
+*.pem
+*.key
+
+# Editor / OS cruft
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs (see the Logging spec in CLAUDE.md — these live outside the repo anyway,
+# but excluded here in case a dev build writes one locally during testing)
+*.log
+logs/
+
+# Never commit real vault content used for local testing
+/test-vault/
+/dev-vault/
