@@ -229,7 +229,8 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Compared side-by-side against Previous ScaleNote's actual screens and holds up — status:
 
 ## Build (portable/installed: Milestone 1; installer polish: Milestone 7)
-- [ ] `npm run tauri build` produces a working Windows installer — status:
+- [ ] `.deb` build produced and actually run/tested on the Linux dev machine — status:
+- [ ] `npm run tauri build` produces a working Windows installer (verified on a VM/second machine, not just "it compiled") — status:
 - [ ] Portable ZIP build produced, sentinel-file detection switches config path correctly — status:
 
 ## Known issues / honest notes to Ron
