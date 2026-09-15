@@ -4,6 +4,14 @@ You are building the app described in README.md. Read it first. This file is the
 
 **Timeline: target a fully polished, non-crashing, good-looking core product by mid-January (roughly 4 months from the start of this project) — not everything in this spec, a deliberately chosen subset, sequenced below. The full scope in README.md is real and wanted, not aspirational filler, but it's sequenced to land across roughly a year, not compressed to hit the January date. If the January milestone slips due to model/compute quota limits or anything else, that's an acceptable, expected outcome — do not cut corners on quality or security to hit the date instead.**
 
+## Git workflow
+
+- **Never commit or push directly to `main`.** All work happens on a feature branch, branched off an up-to-date `main`.
+- Branch naming: `feature/<short-description>`, matching the milestone or feature it corresponds to in the roadmap below — e.g. `feature/vault-storage`, `feature/block-editor`, `feature/p2p-discovery`. One branch per reasonably-scoped piece of work, not one branch for an entire milestone if the milestone is large.
+- Commit in small, frequent, clearly-described commits rather than one giant commit at the end of a branch's work — each commit should describe what changed and why when the reason isn't obvious from the diff alone.
+- When a branch is ready — matches its feature's relevant section of PROGRESS.md, honestly — push it and open a pull request into `main`. Don't merge it yourself; that's a human review step.
+- `main` only ever contains reviewed, stable code. If asked to fix something urgently, that still happens on a branch and through a PR, not as a direct push to `main`, even for a small fix.
+
 ## Roadmap
 
 ### Toward the January milestone — this subset needs to be genuinely done, not just started
