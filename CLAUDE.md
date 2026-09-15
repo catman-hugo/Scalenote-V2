@@ -4,6 +4,37 @@ You are building the app described in README.md. Read it first. This file is the
 
 **Timeline: target a fully polished, non-crashing, good-looking core product by mid-January (roughly 4 months from the start of this project) — not everything in this spec, a deliberately chosen subset, sequenced below. The full scope in README.md is real and wanted, not aspirational filler, but it's sequenced to land across roughly a year, not compressed to hit the January date. If the January milestone slips due to model/compute quota limits or anything else, that's an acceptable, expected outcome — do not cut corners on quality or security to hit the date instead.**
 
+## Document precedence and recording decisions
+
+Three documents govern this build, and they will occasionally disagree. When they do:
+
+- **`FORMAT.md` is authoritative for anything on disk** — markdown syntax, block IDs, frontmatter keys, sidecar shapes. If README.md or this file implies a different on-disk representation, FORMAT.md wins.
+- **This file is authoritative for *how*** — architecture, sequencing, coding standards, security, stability. If README.md describes an implementation approach that conflicts with a rule here, the rule here wins.
+- **README.md is authoritative for *what*** — which features exist, what they do, what's deliberately excluded. If this file is silent on whether something should exist, README.md decides.
+- **On a substantive conflict — the documents disagree about behaviour, not about wording — do not pick.** Record it in `DECISIONS.md` and in PROGRESS.md's "Known issues" section, implement whichever option is smaller and easier to reverse, and keep going. Do not silently resolve a real disagreement between the specs in either direction; that's the single most expensive kind of drift, because it looks like progress.
+
+### DECISIONS.md
+
+Maintain a `DECISIONS.md` at the repo root as an append-only log of architectural decisions. **An entry is mandatory whenever any of these is true:**
+
+- The specs don't determine the answer and the choice will be hard to reverse later (a data format, a schema, a crate boundary, a threading or ownership model).
+- A new runtime dependency is added — including its license.
+- A rule in this file is being followed in a way that isn't obvious, or an explicit `#[allow]`/exception is being taken.
+- Two documents conflicted and you took the reversible option per the rule above.
+- A feature is being implemented in a narrower form than README.md describes.
+
+Entry format — short, dated, and honest:
+
+```
+## YYYY-MM-DD — <one-line decision>
+**Context.** What forced a choice.
+**Decision.** What you did.
+**Alternatives considered.** What you didn't do, and why not.
+**Cost / reversibility.** What this gives up, and what it would take to undo.
+```
+
+This log is reviewed alongside the code. An entry that says "chose X because it seemed best" is worth nothing; an entry that names the alternative and the cost is worth more than the diff it describes.
+
 ## Git workflow
 
 - **Never commit or push directly to `main`.** All work happens on a feature branch, branched off an up-to-date `main`.
@@ -16,31 +47,74 @@ You are building the app described in README.md. Read it first. This file is the
 
 ### Toward the January milestone — this subset needs to be genuinely done, not just started
 
-**Milestone 1 — Foundation (~2 weeks).** Tauri + React + Vite scaffold. Vault folder selection, reading/writing plain markdown files, the sidebar file tree. Prove atomic writes work (kill the app mid-save, confirm no corruption). Set up the on-disk layout correctly from the start per README.md's directory example — canvas sidecars, visible attachments folder, `.scalenote/` reserved for regenerable/device-local state only. Portable-vs-installed detection. Structured logging (`tracing`, rotating file, frontend errors forwarded to it) — get this in early, not bolted on later, since everything after this point is easier to debug with it in place.
+**Milestone 1 — Foundation (~2 weeks).** Tauri + React + Vite scaffold. Vault folder selection, reading/writing plain markdown files, the sidebar file tree. Prove atomic writes work (kill the app mid-save, confirm no corruption). Set up the on-disk layout correctly from the start per README.md's directory example and `FORMAT.md` — note `id` frontmatter, canvas sidecars, visible attachments folder, `.scalenote/` reserved for regenerable caches and sync snapshots only, device secrets in app config rather than the vault. Portable-vs-installed detection. Structured logging (`tracing`, rotating file, frontend errors forwarded to it) — get this in early, not bolted on later, since everything after this point is easier to debug with it in place. Produce and actually run a Linux `.deb` at the end of this milestone: the dev machine is Linux, so this is the build that can be tested directly, and having a real installed artifact from week two is worth far more than discovering packaging problems in January.
 
-**Milestone 2 — Core editing & organization (~5 weeks).** Markdown source editor with live preview, backed by `yrs` from the start (retrofitting CRDT after the fact is much more work than starting with it). SQLite search index, full-text search, command palette, quick switcher. Wikilinks, backlinks, tags. The full block-based rich editor (Tiptap) as an alternate view of the same CRDT-backed document: slash command menu, every block type in README.md's expanded list (headings, equations, Table of contents, Breadcrumb, Tabs, Synced block, columns, etc.), link paste (Mention/Paste/Embed/Bookmark), code blocks (exact visual spec), the shared image/embed resize-handle system, hover previews on menus. Sidebar entity kinds (Notebook/Folder/Section/Page) with custom icons/colors/covers, sidebar customization.
+**Milestone 2 — Core editing & organization (~5 weeks).** The document model comes first and is not optional groundwork: `yrs` backs every note from the first commit of this milestone, the sync-engine crate boundary exists from the first commit of this milestone (see "Shared sync engine crate"), and CRDT snapshots persist and reload per the "Document model" section. Retrofitting either after the editor exists is a rewrite, not a refactor — do not defer them to Milestone 6 on the grounds that no networking exists yet. Then: markdown source editor as a projection of that document with live preview, SQLite search index, full-text search, command palette, quick switcher, wikilinks, backlinks, tags. The full block-based rich editor (Tiptap) over the same document: slash command menu, every block type in README.md's expanded list, all serialized exactly as `FORMAT.md` specifies, link paste (Mention/Paste/Embed/Bookmark), code blocks (exact visual spec), the shared image/embed resize-handle system, hover previews on menus. Sidebar entity kinds (Notebook/Folder/Section/Page) with custom icons/colors/covers, sidebar customization.
 
-**Milestone 3 — Database views (~2 weeks).** Full property type set, all view types (Table/Kanban/Calendar/Gallery/List/Timeline/Charts/Form/Linked view), inline option editing, side peek.
+Two things explicitly **not** in this milestone even though they appear in the block editor's UI surface: the `/canvas` embed block and the draw-over-text annotation layer, both of which depend on the canvas data model built in Milestone 4. Register their slash-command entries as visibly disabled with a "coming in the canvas milestone" tooltip rather than stubbing them.
 
-**Milestone 4 — Canvas & drawing (~2 weeks).** Edgeless canvas mode, exact color swatches and background patterns, lasso-select (OneNote-style live hit-testing), block gutter drag/elongation, draw-over-text annotation layer (block-anchored, not screen-pixel), canvas embeds, split view.
+**Import from other note apps (Obsidian/Notion/OneNote/Evernote) and local-file-format import (Markdown/Text, CSV, Word, PDF) are explicitly not in this milestone either** — they move to Milestone 9, after January. Four importers plus four file-format parsers, each requiring a real fixture and a recorded expected-output diff per the testing standard below, is its own substantial body of work; compressing it into this milestone alongside the document model and the full block editor is how features end up marked `done` without actually being hardened. The Settings → Import section itself doesn't need to exist until Milestone 9 either.
 
-**Milestone 5 — Settings & AI assistant (~2 weeks).** Full Settings UI (General/AI/Diagnostics), Ollama integration, hardware detection and fit scoring, guided setup, Study Assistants (RAG). Memory (see Milestone 10) is explicitly deferred past this point — don't let it creep into this milestone's scope.
+**Milestone 3 — Database views (~2 weeks).** Full property type set, all view types (Table/Kanban/Calendar/Gallery/List/Timeline/Charts/Form/Linked view), inline option editing, side peek. `created_by`/`last_edited_by` are built here and record the **local account identity**, which exists from first run — they do not wait on Milestone 6, which only changes who else can appear in them.
 
-**Milestone 6 — P2P collaboration core (~3 weeks).** Identity/profile, friend nicknames. LAN/Tailscale/manual discovery, pairing, `quinn` QUIC transport, CRDT sync, cursor/selection awareness, presence, reconnect handling. A single-account home server (the multi-account version is Milestone 8, after January).
+**Milestone 4 — Canvas & drawing (~2 weeks).** Edgeless canvas mode, the CRDT-backed canvas document (see "Canvas, annotation, and folder documents"), exact color swatches and background patterns, lasso-select (OneNote-style live hit-testing), block gutter drag/elongation, draw-over-text annotation layer (block-anchored via block IDs, not screen pixels), canvas embeds, split view, pen button mapping for stylus devices.
+
+**Milestone 5 — Settings (~1 week).** General tab (theme, accent color, font size, editor width, sidebar width, default page mode, Connection section, Diagnostics section) only. **No AI tab in this milestone** — AI doesn't exist anywhere in the app, including in Settings, until Milestone 11 builds it, toggle included. Shortened from the original two-week estimate now that it no longer carries Ollama integration, hardware detection, or RAG.
+
+**Milestone 6 — P2P collaboration core (~3 weeks).** Account/device identity and enrolment (see "Identity, devices, and pairing"), friend nicknames. LAN/Tailscale/manual discovery, pairing, `quinn` QUIC transport, wiring the already-existing CRDT documents to the already-existing sync crate, cursor/selection awareness, presence, reconnect handling. A single-account home server (the multi-account version is Milestone 8, after January). If Milestone 2 was done correctly, this milestone adds transport and trust — not a document model.
 
 **Milestone 7 — Hardening and design pass (~2 weeks) — this is the January finish line.** Security audit (`cargo audit`/`npm audit`, Tauri capability review, the untrusted-peer-input checklist). Stability pass: deliberately try to break every feature, including two live instances editing simultaneously. Performance pass. And the design audit described below — this is a real acceptance gate for the milestone, not optional polish.
 
 ### After January — real, wanted, sequenced for the rest of the year
 
 **Milestone 8 — Multi-account home server:** the Jellyseerr-style request/approval flow, allowlist/blocklist, per-account isolated storage.
-**Milestone 9 — Voice calls:** basic single-device calling first and thoroughly proven out, then the multi-device audio routing stretch capability.
-**Milestone 10 — Memory:** background extraction, regex fallback, notes-as-storage, consolidation pass, relevance-scoped retrieval.
-**Milestone 11 — Multi-device sync refinements:** cloud-folder fallback's external-change detection, the shared sync-engine crate boundary if not already clean from earlier work.
-**Milestone 12 — Companion 3DS client:** navigate/add/draw, bidirectional canvas-only sync.
-**Milestone 13 — Additional platforms:** Android build, the `.deb`, and the headless server-mode binary matching the existing `server/` scaffold.
-**Milestone 14 — Open-source release audit:** the no-identifying-information sweep described in the security section below, license file, public-facing documentation pass.
+**Milestone 9 — Import from other note apps:** Obsidian, Notion, OneNote, Evernote, and local-file-format import (Markdown/Text, CSV, Word, PDF), each tested against a real fixture with a recorded expected-output diff. The Settings → Import section is built here.
+**Milestone 10 — Voice calls:** basic single-device calling first and thoroughly proven out, then the multi-device audio routing stretch capability.
+**Milestone 11 — AI assistant:** the global, opt-in, context-aware surface described in "AI assistant: surface, context, and memory" below — the enable toggle and the full Settings → AI tab, local/cloud model selection and hardware fit-scoring, the context-permission model and vault-search tool, and memory built on the note document model. This is the same slot the original roadmap gave to "Memory" alone; the scope is now substantially larger and the whole feature lives here, not split between an earlier Settings milestone and a later Memory milestone.
+**Milestone 12 — Multi-device sync refinements:** conflict surfacing for the cloud-folder mode beyond the baseline hash check, snapshot compaction, and any remaining cleanup of the sync-crate boundary.
+**Milestone 13 — Companion 3DS client:** navigate/add/draw, bidirectional canvas-only sync.
+**Milestone 14 — Additional platforms:** Android build and the headless server-mode binary matching the existing `server/` scaffold.
+**Milestone 15 — Open-source release audit:** the no-identifying-information sweep described in the security section below, license file, public-facing documentation pass.
 
 If work needs to pause or stop at any point, stop at the end of the current milestone, make sure everything up to that point is solid, and leave anything beyond it visibly disabled with a "not finished" state rather than partially built and broken.
+
+## Document model: what is authoritative, and when
+
+This is the most important architectural decision in the project. Read it before writing any editor or storage code.
+
+### The block tree is the document; markdown is its serialization
+
+Each note is a single `yrs` document whose content is a **`Y.XmlFragment` holding the block tree**, bound to Tiptap/ProseMirror. That structure — not a string of markdown — is what collaborative editing, block IDs, block drag/reorder, synced blocks, and annotation anchoring all operate on.
+
+Markdown source mode is a **projection**, not a second document:
+
+- Entering source mode serializes the current document to markdown exactly as it would be written to disk, per `FORMAT.md`.
+- Editing there is permitted only when no remote peer is connected to this note. While a peer is connected, source mode is read-only with a visible, specific reason shown — not a greyed-out button with no explanation.
+- Leaving source mode (or a debounce while in it) parses the text and applies the difference to the document as **one transaction**, not as a stream of character operations. A parse failure leaves the document untouched and reports the error inline with the offending line; it never partially applies.
+- Do not attempt to bind a `Y.Text` of raw markdown as a second collaborative surface. One document, one canonical structure.
+
+Because everything rests on this, the parse/serialize round-trip is a correctness requirement, not a nicety: `parse(serialize(doc)) == doc` and `serialize(parse(text)) == text` for any document ScaleNote itself produced. Write property tests for both directions in Milestone 2, covering every block type in `FORMAT.md`.
+
+### Persisting CRDT state, and what beats what
+
+A `yrs` document rebuilt from scratch out of markdown on every open has no shared history with anyone else's copy, which means offline edits on two devices cannot actually merge — they can only be reconciled as text. That would make the home-server sync mode no better than the cloud-folder fallback it's supposed to improve on. So state persists:
+
+- On save, write the note's CRDT state to `.scalenote/crdt/<note-id>.bin`, keyed by the note's frontmatter `id` (a UUID, so renaming or moving the note doesn't orphan it). Write a compacted full-document update (`encode_state_as_update`), atomically, same temp-file-then-rename rule as any other write — not an append-only log.
+- Alongside it, store the **hash of the markdown content this snapshot was last serialized from**.
+- On open, compare that hash against the actual file on disk:
+  - **Match:** load the snapshot. Full history, real merges.
+  - **Mismatch:** the file changed outside ScaleNote — a text editor, a sync client, a script, a local AI agent with filesystem access (an explicitly supported scenario, see README.md). **The file on disk wins.** Discard the snapshot, build a fresh document from the file's current text, start a new snapshot, log it at `warn`, and tell the user the note changed outside the app. Never let in-memory state silently overwrite a file someone else wrote.
+  - **Missing or corrupt snapshot:** same as mismatch. This is a normal, non-error path.
+- This is also why a cloud sync client mangling `.scalenote/crdt/` is harmless rather than catastrophic: a conflicted or stale snapshot simply fails its hash check and gets rebuilt.
+
+Two invariants that follow, and must hold everywhere:
+
+1. **Content lives in the `.md` file. History lives in `.scalenote/`.** Deleting `.scalenote/` entirely must lose no content — only the ability to merge cleanly with a peer's divergent offline history until both sides re-baseline. Never store anything in `.scalenote/` that isn't reconstructible from vault files, accepting degraded merge quality as the only loss.
+2. **Disk is written only from merged local CRDT state**, never directly from incoming network bytes (see the peer-to-peer security rules).
+
+### Note identity
+
+Every note gets `id: <UUIDv7>` in its frontmatter, assigned once at creation, never reassigned, never reused, preserved across rename/move/import. It keys the CRDT snapshot, the annotation sidecar, and anything that needs to survive a rename. If a note arrives without one (hand-created, imported, copied in from an Obsidian vault), assign one on first open and write it back. If two notes in a vault somehow carry the same `id`, the one with the older filesystem creation time keeps it and the other is reassigned, logged at `warn`.
 
 ## Design and visual quality: do not look AI-generated
 
@@ -77,7 +151,7 @@ Use `tracing` in Rust (with `tracing-appender` for a rotating, non-blocking file
 
 ## Security requirements (non-negotiable)
 
-- The app must work fully offline, with three explicit, narrow exceptions: the AI assistant tab, the Mention/Embed/Bookmark link-paste options (which fetch a page title, description, or preview, or load a live preview — "Paste" as a plain URL requires no network and always works offline), and Link-sourced page cover images (paste an image URL, fetched once and then stored locally like any other attachment). Every other feature (notes, canvas, search, sync, collaboration, everything) makes zero network requests, ever. Do not add remote fonts, remote scripts, or CDN references anywhere in the frontend or backend outside these scoped exceptions.
+- The app must work fully offline, with three explicit, narrow exceptions: the AI assistant (see "AI assistant: surface, context, and memory" — invisible and inert until explicitly enabled, and even then silent until acted on), the Mention/Embed/Bookmark link-paste options (which fetch a page title, description, or preview, or load a live preview — "Paste" as a plain URL requires no network and always works offline), and Link-sourced page cover images (paste an image URL, fetched once and then stored locally like any other attachment). Every other feature (notes, canvas, search, sync, collaboration, everything) makes zero network requests, ever. Do not add remote fonts, remote scripts, or CDN references anywhere in the frontend or backend outside these scoped exceptions.
 - Tauri capabilities/permissions: grant only what is used. No shell access, no arbitrary process spawning, no HTTP plugin. Filesystem access must be scoped to the user-selected vault folder only — never allow a path that resolves outside it (guard against `../` traversal explicitly, don't just trust the OS).
 - Content Security Policy in `tauri.conf.json` must be strict: no `unsafe-eval`, no remote origins.
 - Disable devtools and any debug panel in the release build.
@@ -115,11 +189,14 @@ Don't build this the way Previous ScaleNote did: it stored overlay ink strokes i
 
 Instead:
 
-- When a stroke is drawn, determine which block it was drawn over and store its points as fractional offsets relative to *that block's own bounding box* (x/y as 0–1 fractions of the block's width/height), with stroke thickness in units relative to that block's font size (e.g. `em`) rather than raw pixels.
-- At render time, position each stroke relative to wherever its anchor block currently sits, at its current size. Because the coordinates are fractions of the block's own box, the stroke naturally moves when content above it shifts the block down, and scales when the block's width or font size changes — no separate logic is needed to "keep it aligned," alignment falls out of expressing the stroke in the block's own terms instead of the screen's.
-- A stroke spanning multiple blocks anchors to whichever block it starts in — document this as a known scope limit rather than attempting to split ink across multiple anchors.
-- Deleting a block deletes its anchored strokes with it. No orphaned ink left floating with nothing to anchor to.
-- Store this layer as its own sidecar file (`Note Title.annotations.json`, per README.md's directory layout) — separate from the edgeless-canvas sidecar, since the coordinate semantics are genuinely different (block-anchored/fractional vs. freeform/absolute) and conflating them into one format invites exactly the kind of bug above.
+- **The anchor is a block ID**, not a position or an index. Drawing a stroke over a block that has no ID yet mints one and writes it into the markdown file per `FORMAT.md` — lazily, on first need. Anchoring by index or by order is wrong and will silently relocate every stroke the first time a block is reordered, which is a supported gesture.
+- Store a stroke's points as fractional offsets relative to *that block's own bounding box* (x/y as 0–1 fractions of the block's width/height), with stroke thickness in units relative to that block's font size (e.g. `em`) rather than raw pixels.
+- At render time, position each stroke relative to wherever its anchor block currently sits, at its current size. Because the coordinates are fractions of the block's own box, the stroke moves when content above it shifts the block down, and scales when the block's width or font size changes — alignment falls out of expressing the stroke in the block's own terms instead of the screen's.
+- **Known limitation, document it rather than chase it:** fractional coordinates track the block's *box*, not its *words*. If a paragraph reflows from two lines to five because its text was edited, ink at y=0.5 stays at the vertical midpoint of a now-taller box, which is over different words than it was. This is expected behaviour for this design, not a regression; underline-a-specific-word fidelity through arbitrary text edits is out of scope. Say so in the UI docs.
+- A stroke spanning multiple blocks anchors to whichever block it starts in — also a documented scope limit, not something to solve by splitting ink across anchors.
+- **Deleting a block deletes its anchored strokes with it — as a tombstone, not a hard delete.** Undoing the block deletion must restore its ink. Retain deleted strokes for at least the life of the undo stack; a plain Ctrl+Z that silently discards drawings is data loss.
+- The annotation layer is a CRDT document of its own (see "Canvas, annotation, and folder documents" below), so a peer deleting a block removes the associated ink on both sides instead of leaving each device with a differently-orphaned sidecar.
+- Serialize it to its own sidecar file (`Note Title.annotations.json`, per README.md's directory layout) — separate from the edgeless-canvas sidecar, since the coordinate semantics are genuinely different (block-anchored/fractional vs. freeform/absolute) and conflating them into one format invites exactly the kind of bug above.
 
 ## Pen/highlighter color swatches (exact values, do not approximate)
 
@@ -141,13 +218,21 @@ Three options: Blank (nothing drawn), Dots, Lines.
 - **Pattern color adapts to the canvas background color's brightness:** compute perceptual brightness as `(r*299 + g*587 + b*114) / 1000`; if brightness is above the halfway point (128 out of 255), use `#3A3A3A` (dark grey, for light backgrounds); otherwise use `#CAEBFD` (light blue, for dark backgrounds). This applies to both dots and the horizontal lines — the red margin line's color never changes.
 - All spacing values scale with zoom and pan together with the viewport, so the pattern stays visually anchored to canvas space rather than sliding independently as the user pans or zooms.
 
-## Canvas data model
+## Canvas, annotation, and folder documents (all CRDT-backed)
 
-Design the canvas layer as two flat collections, not a type hierarchy:
+Note text is not the only thing that syncs. The canvas layer, the annotation layer, and the folder sidecar are each their own `yrs` document with its own snapshot under `.scalenote/crdt/`, following exactly the same hash-checked, file-wins rules as note content above. This is what lets multi-device sync and the home server carry drawings, ink, and database schemas rather than leaving them to last-writer-wins, and it's what makes the 3DS client (Milestone 13) possible at all.
 
-- **Strokes:** each stroke stores its path data, tool, color, thickness, opacity, z-index, and a precomputed bounding box (recompute it whenever the path changes, don't recalculate on every hit-test — this is what makes lasso-select and click-to-select fast on a canvas with hundreds of strokes).
-- **Placed objects:** sticky notes, text boxes, images, shapes, and frames all share one common shape — position (x, y), size, rotation, z-index — with a type-specific data payload layered on top (e.g. a sticky note's payload is just `{ text, backgroundColor }`). Don't give each object kind its own top-level schema; one shared shape plus a loose payload avoids a combinatorial explosion of near-identical types as more object kinds get added.
+This is deliberately *not* the hard version of collaborative drawing. Design the canvas layer as two flat CRDT maps, not a type hierarchy and not an ordered sequence:
+
+- **Strokes:** a `Y.Map` from stroke UUID to an **immutable** stroke record — path data, tool, color, thickness, opacity, z-index, and a precomputed bounding box (recompute it whenever the path changes, don't recalculate on every hit-test — this is what makes lasso-select and click-to-select fast on a canvas with hundreds of strokes). A stroke is never mutated in place: editing one means deleting the old key and inserting a new record. Concurrent drawing is then concurrent insertion at distinct keys, which merges correctly with no ordering question to resolve — that's the whole reason strokes are the easy case and text is the hard one.
+- **Placed objects:** a `Y.Map` from object UUID to a record sharing one common shape — position (x, y), size, rotation, z-index — with a type-specific data payload layered on top (e.g. a sticky note's payload is just `{ text, backgroundColor }`). Don't give each object kind its own top-level schema; one shared shape plus a loose payload avoids a combinatorial explosion of near-identical types. Unlike strokes, placed objects are mutable (dragging a sticky note updates its position); store mutable fields as a nested `Y.Map` so two people moving different properties of the same object don't clobber each other.
 - **Frames:** a frame is a placed object (`kind: "frame"`) that names a rectangular region of the canvas. This is what makes canvas-embed-in-a-note possible — see below.
+- **Annotation strokes** live in the note's annotation document: a `Y.Map` from stroke UUID to `{ block_id, points[], thickness_em, tool, color }`. Same immutability rule as canvas strokes.
+- **Folder sidecar** (`kind`, `icon`, `color`, and the optional `database` schema) is a `Y.Map`. The database property schema is an ordered list of property definitions; use a `Y.Array` so two people adding a column concurrently both keep their column.
+
+**Undo must be scoped.** Use a `yrs` UndoManager keyed to the local client's origin, on both the note document and the canvas document, so Ctrl+Z undoes *your* last action and never silently reverts a collaborator's. A local undo stack over a shared document is a data-loss bug, not a convenience.
+
+**The `id` database property needs a collision rule.** A folder-scoped "next number to hand out" counter is not safe under offline merging: two devices offline both take 7. Instead, store assigned IDs as part of the folder document (`note-uuid → integer`), allocate locally as `max(assigned) + 1`, and resolve collisions deterministically at merge time: of two notes holding the same number, the one whose note UUID sorts lower keeps it, the other is reassigned to the new max. Log reassignments. IDs are stable in the overwhelming majority of cases and never silently duplicate in the rest, which is the correct trade for a display-facing number.
 
 ## Image and embed resizing
 
@@ -162,6 +247,8 @@ Both image blocks and link-embed blocks share one resize implementation: 8 handl
 - Embed blocks use the same resize-handle system as image blocks (see below) — one interaction pattern for both, not two.
 
 ## Additional block types: implementation notes
+
+**`FORMAT.md` is authoritative for how every one of these is written to disk** — the directive syntax, attribute names, and block-ID convention. Do not invent a representation for a block type; if `FORMAT.md` doesn't cover something you need, add it there first (with a `DECISIONS.md` entry) rather than improvising in the serializer. The notes below cover behaviour, not syntax.
 
 - **Table of contents:** derived entirely from the note's own heading blocks at render time — never stored separately, so it can't go stale. Clicking an entry scrolls to that heading.
 - **Breadcrumb:** derived from the file's own path relative to the vault root — walk up the folder tree, read each ancestor folder's name (and icon, if the `.scalenote-folder.json` sidecar has one) for the trail. No separate breadcrumb data to maintain.
@@ -243,12 +330,12 @@ Single background color for the whole block — don't build a separate-colored h
 
 A database is a folder with a property schema attached — nothing more exotic than that. Extend the same `.scalenote-folder.json` sidecar used for Notebook/Folder/Section kind/icon/color with an optional `database` field holding the schema:
 
-- Schema shape: an ordered list of properties, each with a name, a type (`text` | `number` | `checkbox` | `date` | `select` | `multi_select` | `status` | `url` | `email` | `phone` | `files` | `relation` | `rollup` | `formula` | `created_time` | `last_edited_time` | `created_by` | `last_edited_by` | `id` | `button`), and type-specific config (option lists for select-family types, a target-folder reference for `relation`, a source-relation-plus-aggregation-function for `rollup`, an expression string for `formula`, an action definition for `button`).
+- Schema shape: an ordered list of properties, each with a name, a stable property UUID (so renaming a property doesn't orphan every note's values), a type (`text` | `number` | `checkbox` | `date` | `select` | `multi_select` | `status` | `url` | `email` | `phone` | `files` | `relation` | `rollup` | `formula` | `created_time` | `last_edited_time` | `created_by` | `last_edited_by` | `id` | `button`), and type-specific config (option lists for select-family types, a target-folder reference for `relation`, a source-relation-plus-aggregation-function for `rollup`, an expression string for `formula`, an action definition for `button`). The schema lives in the folder's CRDT document and serializes to the `database` field of `.scalenote-folder.json`; use a `Y.Array` of property definitions so two people adding a column concurrently both keep theirs.
 - Each note inside that folder stores its actual property *values* in its own YAML frontmatter, keyed by property name. A note missing a value for a schema property simply has no value for it (render as empty in the table), not an error.
 - **`relation`** stores the target note's path (relative to the vault root, so it survives the vault being moved as a whole) in the source note's frontmatter. **`rollup`** is computed at render time by following a `relation` property and aggregating a chosen property across every related note (count, sum, average, min, max) — it's never stored, always recalculated, so it can't go stale.
 - **`formula`** evaluates a small, sandboxed expression language over the row's other properties (arithmetic, string concatenation, basic date math, comparisons) — computed at render time like rollup, never stored. Keep the expression grammar small and well-documented rather than trying to match a spreadsheet's full formula language.
 - **`created_time`/`last_edited_time`** read directly from the note file's filesystem metadata — no separate tracking needed. **`created_by`/`last_edited_by`** record which peer (by their P2P collaboration identity) last touched the note; on a note that's never been edited collaboratively, these just show the local device.
-- **`id`** is a simple counter scoped to the folder, stored in the folder's `.scalenote-folder.json` alongside the schema (the next value to hand out) — assign once, on note creation, never reassign.
+- **`id`** is a display-facing integer scoped to the folder, allocated on note creation and never deliberately reassigned. It cannot be a simple "next value" counter — two devices editing offline would both take the same number. Store assigned values in the folder document as `note-uuid → integer`, allocate as `max(assigned) + 1`, and resolve merge collisions deterministically: of two notes holding the same value, the one whose note UUID sorts lower keeps it and the other is reassigned to the new maximum, logged at `info`. Never surface a duplicate.
 - **`button`** actions are limited to local, in-app operations (set a property to a value, create a new linked note) — there is no cloud automation layer to call out to, and this must never become a place arbitrary code executes.
 - Adding/renaming/retyping/removing a property in the schema is a schema edit in the folder sidecar. When a property is removed, don't silently leave orphaned frontmatter keys on every note — either strip the key or leave it and stop rendering it (pick one, document the choice in PROGRESS.md, but don't do both inconsistently). Removing a `relation` property should not delete the target notes it pointed to, only the reference.
 - The view types (Table, Kanban, Calendar, Gallery, List, Timeline, Charts, Form, Linked view) are pure renderers over the same schema + notes — no separate storage per view, no conversion step when switching. Kanban groups by any `select` or `status` property; Calendar and Timeline plot notes by `date` properties (Timeline additionally uses the end-date range); Charts aggregate over existing properties and compute at render time, same as Rollup; a Linked view is just a second view configuration (its own filter/sort/view-type choice) pointing at the same folder's schema, stored wherever the user placed that linked view rather than duplicating the folder's data.
@@ -259,15 +346,42 @@ A database is a folder with a property schema attached — nothing more exotic t
 - Inline vs. full-page is a placement detail (is this database view embedded as a block within a note's content, or is it the entirety of a page), not a different underlying mechanism — same schema, same renderer, same notes either way.
 - Do not build Person properties, Place properties, Map views, Dashboard/Feed views, or any cloud-synced database integration (GitHub/Asana/GitLab/Google Drive/Figma/Zendesk-style properties) — these either require an account/cloud system this app deliberately doesn't have, or a mapping/geocoding service with no offline story. If asked to reconsider scope later, that's a real conversation to have, but it isn't part of this build.
 
-## Identity, profile, and friend nicknames
+## Identity, devices, and pairing
 
-- Local username and password are app-level config (same location as other Settings values, portable-vs-installed aware per the rule above) — never transmitted anywhere except as the display name presented to a P2P peer during connection. The password, if set, is hashed locally and only ever checked locally; there is no server-side counterpart to check it against.
-- Every device generates a persistent key pair on first run — this is its permanent identity, already required for P2P pairing/trust. The self-declared username is just a mutable label attached to that key, broadcast to peers on connection.
-- A friend nickname is a local mapping of `{ peer_public_key: nickname }`, stored only on the device that set it, never sent to the peer or to anyone else. When rendering a peer's name anywhere in the UI, check for a local nickname keyed by their public key first, and fall back to their broadcast display name if none is set. Never let a nickname overwrite or transmit the peer's own self-declared username — the mapping is purely a local rendering override.
+Three features — multi-device sync, ringing an incoming call on all of a person's devices, and per-account isolation on a home server — all depend on knowing which devices belong to the same person. There is exactly one mechanism for that, defined here. Do not build a second notion of it anywhere.
 
-## Shared sync engine crate (build this now, even though the server binary comes later)
+### Keys
 
-Structure the P2P/CRDT sync engine (mDNS/Tailscale/manual discovery, pairing, `quinn` transport, `yrs` document sync, awareness) as its own library crate in the Cargo workspace, separate from the Tauri-specific desktop application code (window management, Tauri commands, the UI bridge). The desktop app depends on this crate; it does not contain the sync logic itself. This isn't optional future-proofing — it's what makes the headless server-mode binary described in `server/` (Dockerfile, docker-compose.yml, SERVER.md) possible at all without reimplementing or forking the sync logic later. Get the crate boundary right now, before any server binary exists, rather than trying to extract it after the fact.
+- **Account key pair** (Ed25519), generated on first run of the first install. This *is* the person's identity. Peers trust account keys; nothing else.
+- **Device key pair** (Ed25519), generated on first run of every install, unique to that machine.
+- **Device certificate:** `{ device_pubkey, account_pubkey, device_label, issued_at }`, signed by the account key. A device presents its certificate plus proof of possession of its device key; a peer verifies the signature chains to an account key it already trusts.
+- Both private keys and the certificate live in the **app-level config location** (portable-vs-installed aware), never in the vault. The vault gets synced, shared, and backed up; secrets must not travel with it.
+
+### Enrolling your own second device
+
+1. On an already-enrolled device, Settings → Connection → "Add a device" shows a short code and begins listening on the LAN/tailnet.
+2. The new device enters the code, the two connect over the normal QUIC transport, and the code authenticates the channel (treat it as a short-lived pre-shared secret; rate-limit attempts, expire it in minutes, and never reuse one).
+3. The enrolling device signs a certificate for the new device's key and transmits it **along with a copy of the account private key**, so the new device is a full peer.
+4. Both devices record the new device in a device list within the account.
+
+**Any enrolled device can enrol another.** The alternative — only the founding device may enrol — means a lost laptop permanently prevents adding a phone, with no server to recover from, and that is a worse failure than the one it prevents. The cost of this choice is real and must be stated in the UI: the account key exists on every enrolled device, so a stolen unlocked device is a compromise of the identity, not just of that machine.
+
+**Revocation:** any enrolled device can revoke another, producing a revocation record signed by the account key. Revocations propagate to peers as they reconnect. Be honest about the limit — with no central authority, revocation is best-effort and eventually-consistent; a peer that never reconnects never learns. Say this in the UI rather than implying a guarantee.
+
+### Trust and naming
+
+- **Trust attaches to account keys.** Accepting a connection request once means accepting that person, including from devices of theirs you've never seen. Do not prompt per-device; that's noise that trains people to click Accept without reading.
+- The self-declared username is a mutable label attached to the account key, broadcast to peers on connection, never verified by anyone.
+- A friend nickname is a local mapping of `{ account_pubkey: nickname }`, stored only on the device that set it, never sent to the peer or to anyone else. When rendering a peer's name anywhere in the UI, check for a local nickname keyed by their account key first, and fall back to their broadcast display name if none is set. Never let a nickname overwrite or transmit the peer's own self-declared username — the mapping is purely a local rendering override. Because it keys on the account rather than a device, your nickname for someone follows them to their new machine, which is the behaviour README.md promises.
+- The local password app-lock is unrelated to any of the above: hashed locally, checked locally, gates opening the app on one device. It is not encryption and the vault remains readable on disk; the Settings UI must say so plainly rather than implying protection it doesn't provide.
+
+## Shared sync engine crate (Milestone 2, not later)
+
+Structure the CRDT and sync engine as its own library crate in the Cargo workspace from the first commit of Milestone 2 — before any networking exists. The temptation is to defer it until Milestone 6, when there's something to send over a wire; resist it, because by then the document model will have grown Tauri-shaped dependencies that are painful to unpick.
+
+**In the crate:** document types and their `yrs` schemas (note, canvas, annotation, folder), markdown parse/serialize per `FORMAT.md`, snapshot persistence and the hash check, discovery (mDNS/Tailscale/manual), pairing and the identity/certificate model, `quinn` transport, awareness, and the validation/rate-limiting of incoming messages.
+
+**Not in the crate:** anything Tauri — window management, commands, dialogs, the UI bridge — and anything React. The crate must compile and its tests must pass without Tauri as a dependency; that's the mechanical check that the boundary is real, and it's what makes the headless server binary in `server/` possible later without forking the sync logic. Add that check to CI in Milestone 2 so the boundary can't rot quietly.
 
 ## Voice calls
 
@@ -290,35 +404,70 @@ Structure the P2P/CRDT sync engine (mDNS/Tailscale/manual discovery, pairing, `q
 - Retry/reconnect to a configured home server should be patient and unobtrusive — it's expected to be offline sometimes (Ron's example: off overnight). Attempt periodically in the background, sync immediately when reachable, and don't surface repeated connection-failure noise to the user for an expected, intermittent offline state.
 - **Cloud-folder fallback (Nextcloud/MEGAsync/Google Drive/etc.) needs zero special integration** — it works purely because the vault is plain files and atomic writes are already required everywhere. The one thing worth adding: since this mode has no CRDT protection across devices, consider detecting the disagreement case — if a note's file on disk doesn't match what the app's own last-known state for that note was (changed outside the app, e.g. by a sync client pulling a different version), surface something like "this note may have changed elsewhere — review before continuing" rather than silently trusting whichever version happened to land on disk last. This is a real data-safety gap in this mode and deserves an honest signal to the user, not silence.
 
-## Memory (chat with recall across conversations)
+## AI assistant: surface, context, and memory
 
-- No second heavy service dependency for this — don't pull in a separate vector-database service the way the reference system this was modeled on does. Embeddings are computed locally via Ollama's embedding models (e.g. `nomic-embed-text`) through the same already-scoped Ollama integration, and stored alongside the existing search index in `.scalenote/index.sqlite` — brute-force or lightweight cosine similarity over that is entirely sufficient at the scale a personal memory store actually reaches (hundreds to low thousands of entries), and it keeps this a single lightweight binary rather than a multi-container stack.
-- Each extracted fact is a real note: a small `.md` file with frontmatter (`type`, `date`, `confidence`, and a reference to the source conversation) in a dedicated Memory folder in the vault. The SQLite-backed embedding index is a cache for fast semantic lookup, same as the search index elsewhere in this spec — the notes are the source of truth, the index is regenerable from them.
-- **Extraction pipeline, in order:** after a conversation (not live, mid-turn), run it through the configured model asking it to identify durable facts worth remembering. If that fails or no model is reachable, fall back to a deterministic regex pass catching obvious patterns ("my name is X", clear preference statements) — this fallback exists specifically so memory doesn't just silently stop working when a model is temporarily unavailable, mirroring a real design choice in the reference system.
-- **Periodic consolidation:** run a scheduled pass (daily is a reasonable default) that fingerprints/embeds existing memory notes to find near-duplicates and merges or removes them, and prunes entries that have aged out or scored as low-value. This is not optional polish — unbounded memory growth is a documented real-world failure mode in the reference system, worth designing around from the start rather than patching in later.
-- **Retrieval at chat time:** embed the current conversation's recent context, query the local similarity index for the most relevant existing memory notes, and inject only those (a small number, not the whole store) into the prompt. Show the user which memories were actually recalled for a given response where feasible, rather than making retrieval invisible — this matters because memory is genuinely steering the model's behavior, and an unreasonable or wrong-sounding response is much easier to diagnose if the person can see what got recalled.
-- **Security framing:** memory notes are persistent context that gets fed back into every future model call that retrieves them. Never let this feature be used to store secrets — no passwords, API keys, tokens, or credentials, ever, and don't build any flow that would make that seem like a reasonable thing to do (e.g. don't extract and store anything that looks like a credential, even if the conversation mentions one — flag and skip it instead).
-- **Explicitly not a document store.** Don't let memory extraction try to ingest or retain whole documents/files — that's what Study Assistants (RAG) already does, and building document retention into fact-extraction memory produces exactly the "shredded into meaningless fragments" failure mode reported against the reference system. If a user pastes or references a large document in chat, that's a candidate for Study Assistants, not memory extraction.
+This is the one feature in the app that is opt-in rather than opt-out, and the one place network access to a third party is ever allowed. Both properties are non-negotiable and both are cross-cutting — they constrain code outside this section too, not just the AI code itself.
 
-## AI assistant scope (the one place network access is allowed)
+### Invisibility is a build requirement, not a visual one
 
-The AI tab is the sole exception to the offline-only rule, and it stays narrow:
+Before the master toggle in Settings → AI is on, there must be **zero** AI-related elements anywhere in the rendered app — not hidden via CSS, not disabled, not present-but-unstyled. The command doesn't exist in the command palette's registered list. The keyboard shortcut listener doesn't register. The sidebar's "Add section" picker doesn't offer the AI panel. The component doesn't mount. Implement the gate at the point where these things are registered, not at the point where they're rendered — a `display: none` on an always-mounted component fails this requirement even though it looks identical to a user.
 
-- No network call from this feature happens until the user actually opens the AI tab or acts on it. It isn't checking for updates or phoning anything on app startup.
-- The only endpoints this feature ever talks to are: the local Ollama installation (if present, on its own localhost port — this is local, not "internet," but still worth naming explicitly), Ollama's actual cloud API (for cloud model access with a user-provided key), and HuggingFace's actual API (for browsing/downloading GGUF models). No other destinations, no analytics, no telemetry, no "phone home" of any kind bundled in alongside this feature.
-- The API key, once entered, is stored locally (in the app-level config location — OS AppData or the portable-mode folder next to the exe, per the portable/installed rule above) and is never transmitted anywhere except in requests the user's own actions trigger.
-- Hardware detection (CPU/RAM/GPU/VRAM) is a fully local read — via the `sysinfo` crate for CPU/RAM, and platform GPU APIs (DXGI on Windows) for VRAM — never sent anywhere except as an input to the local fit-scoring calculation.
-- Before listing a HuggingFace model as downloadable, verify it actually has a usable GGUF quantization available. Presenting a model that turns out to have no GGUF source is a real, documented dead-end in a reference implementation of this same feature — check first, don't let the user hit it after picking one.
-- Fit-scoring math (estimating a model's VRAM/RAM footprint from its parameter count and quantization level, then comparing against detected hardware) happens locally — this is a calculation, not a network call, and should work even if the catalog was fetched a while ago and cached.
+Write a test for this directly: render the full app tree with AI disabled and assert no AI-tagged DOM node exists anywhere, not "assert the AI panel is not visible." This is exactly the kind of requirement that's easy to satisfy shallowly, so make it mechanically checkable rather than trusting a visual pass.
+
+### The surface
+
+One dockable panel, opened by a configurable keyboard shortcut once AI is enabled, and offerable through the customizable sidebar's "Add section" picker. It is not wired into the editor toolbar, the database view header, or the canvas separately — those are three different places a stray affordance could leak from, and three different places context-assembly logic would have to be duplicated. The panel reads "what's currently active" from wherever the user actually is; it does not need per-view integration points to do that.
+
+### Context assembly
+
+On open, the panel inspects the active view and populates removable chips:
+
+- An open note → its rendered block-tree content (not the raw markdown; the block tree, so context reflects what's actually on screen including collapsed-toggle state where relevant).
+- An open database view → its schema and the currently visible/filtered rows, serialized compactly (respect a row cap; a 2,000-row table view does not belong in a prompt wholesale — summarize and let the vault-search tool fetch specifics on request instead).
+- An open canvas → the text-bearing placed objects (sticky notes, text boxes) present in view. Freehand ink strokes are not interpreted or described — there's no vision step here, and pretending otherwise would be worse than not including canvas context at all.
+
+These chips can be removed before sending. Nothing beyond the active view is included without one of two explicit actions:
+
+- **Attaching a file or another note** to the conversation — extracted via the same local parsers the importers use (PDF text extraction, `.docx`, plain text), never a network fetch.
+- **Vault search**, gated by its own permission toggle in Settings → AI, default off. When granted, the assistant may issue queries against the existing SQLite full-text index during a conversation; show the user what was retrieved, the same transparency rule memory retrieval already follows below. This is the mechanism that replaces the old standalone "Study Assistants (RAG)" feature — an uploaded textbook is just an attachment, and answering from it is just this tool finding it.
+
+**Boundary, unconditional:** never read `.scalenote/` internals, identity keys, device certificates, or pairing secrets, and never resolve a path outside the vault root — the same Tauri filesystem scoping that governs every other feature applies here with no special case.
+
+### Memory
+
+Extracted facts are real notes in a dedicated `Memory/` vault folder — small `.md` files with frontmatter for `type`, `date`, `confidence`, and a reference to the source conversation. Because these are ordinary notes, they get the same `yrs` document model, the same CRDT snapshot, and the same sync behavior as everything else in the vault, for free — nothing extra needs to be built for memory to sync via P2P collaboration, a home server, or the cloud-folder fallback.
+
+- **A conversation is never itself persisted as a note.** Only extraction output is. Extraction runs in the background after the panel closes or the session goes idle — never live, mid-turn — asking the configured model to identify durable facts worth remembering.
+- **A deterministic regex fallback** ("my name is X," a clearly stated preference) runs when no model is reachable or the model-based pass fails, so memory doesn't silently stop working.
+- **A separate setting decouples extraction's model from the conversation's model** — a user chatting on a cloud model can still keep extraction (and therefore that conversation's summary) on a local model. Default: extraction uses whichever model is configured for chat, and the Settings → AI tab states this plainly next to the toggle that changes it.
+- **Periodic consolidation** (daily is a reasonable default) fingerprints/embeds existing memory notes, merges near-duplicates, and prunes low-value or aged-out entries — required, not optional, because unbounded memory growth is the documented failure mode this design is built against. Enforce a soft size cap on `Memory/` that forces an out-of-cycle consolidation pass if exceeded, rather than relying on the schedule alone.
+- **`Memory/` is excluded from full-text search results and the graph view by default.** It remains a real, syncing, user-editable folder — the exclusion is about not cluttering two surfaces that weren't designed with a hundred small fact-notes in mind, not about hiding the folder itself. A setting toggles inclusion back on.
+- **Retrieval is relevance-scoped and shown, never a full dump.** Embed the current conversation's recent context, query the local similarity index, inject only the small number of genuinely relevant notes, and show the user which ones were recalled for a given response — this matters because memory steers behavior, and a wrong-sounding response is much easier to diagnose when what got recalled is visible.
+- **Never stores secrets.** No passwords, API keys, tokens, or credentials — flag and skip anything that looks like one during extraction, even if the conversation explicitly states it and even if the user asks for it to be remembered.
+
+### Local and cloud models
+
+Settings → AI is the only place any of this is configured: the master enable toggle, provider selection (local Ollama, Ollama Cloud, or both with a per-conversation choice), the model catalog (Recommended / Browse Ollama / Browse HuggingFace / Ollama Cloud / Installed — unchanged from the original design: fit-scoring against actually detected hardware, plain-language small-model/no-image/slow-on-CPU warnings on every listing, HuggingFace GGUF availability verified before a model is offered as downloadable), the context permissions described above, the memory controls described above, and a free-text system prompt prepended to every assembled context.
+
+- **No network call happens until the user acts.** Not on enabling the toggle, not on opening the panel — only on sending a message with a cloud-backed model selected, or on a background extraction pass that is itself configured to use a cloud model.
+- **The only network destinations, ever, for this feature:** the local Ollama installation (localhost, not "internet," but named explicitly since it's still a process boundary), Ollama's actual cloud API, and HuggingFace's actual API for browsing/downloading GGUF models. No analytics, no telemetry, nothing else.
+- **State plainly, in the Settings UI itself, what a cloud request contains:** the message, every context chip currently attached, and any vault-search results pulled in during that turn. This is not a footnote — put it next to the provider selector, not buried in a help page.
+- Hardware detection (CPU/RAM/GPU/VRAM) is a fully local read (`sysinfo`, platform GPU APIs) and is never transmitted anywhere except as input to the local fit-scoring calculation. The API key, once entered, is stored in the app-level config location and is never transmitted except in requests the user's own actions trigger.
+
+### One surface, not several
+
+No "Ask AI" affordance is embedded in block context menus, no AI-generated block types, no second AI entry point anywhere else in the app. Everything above — chat, context, memory, model selection — goes through the one panel gated by the one toggle. If a future request asks for AI somewhere else in the UI, that is a request to add a second surface and should be treated as a real scope decision (a `DECISIONS.md` entry, at minimum), not an incremental addition.
 
 ## PROGRESS.md
 
 Keep `PROGRESS.md` updated as you go, not just at the end. For every feature listed in README.md, mark it one of: `done`, `partial (note why)`, `disabled (note why)`. This file is the actual deliverable being evaluated alongside the app — be precise and honest in it. Don't mark something `done` if you haven't actually tried to break it. When something is partial or disabled, cite the specific reason concretely (what's missing, what broke) rather than a vague "needs more work."
 
-## Definition of done for the session
+## Definition of done, per milestone
 
-- `npm run tauri build` succeeds and produces a working Windows installer
-- The app opens, a vault can be created/opened, notes can be created/edited/saved/reopened without data loss
-- Killing the app mid-edit does not corrupt any file
-- No feature in the UI throws an unhandled exception when used normally or when used slightly wrong (empty input, huge input, special characters, rapid clicking)
-- `PROGRESS.md` accurately reflects the state of every feature in README.md
+Apply this at the end of each milestone in the Roadmap above, not only once at the very end of the project:
+
+- The relevant build for that milestone succeeds and actually runs: the Linux `.deb` from Milestone 1 onward (built and tested on the dev machine), the Windows installer once Milestone 7's hardening pass covers it (verified on a VM/second machine, not just "it compiled").
+- The app opens, a vault can be created/opened, notes can be created/edited/saved/reopened without data loss.
+- Killing the app mid-edit does not corrupt any file.
+- No feature added in that milestone throws an unhandled exception when used normally or when used slightly wrong (empty input, huge input, special characters, rapid clicking).
+- `PROGRESS.md` accurately reflects the state of every feature touched in that milestone.

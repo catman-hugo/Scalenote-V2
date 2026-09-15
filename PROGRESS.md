@@ -5,10 +5,18 @@ Status legend: `done` — implemented and tried-to-break tested · `partial` —
 Update this continuously while working, not just at the end. Each section below is tagged with the milestone it belongs to, per CLAUDE.md's roadmap — sections tagged Milestone 1 through 7 are the January target; everything tagged "after January" is real, wanted, and already fully speced, just sequenced later. Don't read this whole document as one flat list that all needs to be `done` at once.
 
 ## Core (Milestone 1–2)
+- [ ] Document model: every note backed by a `yrs` `Y.XmlFragment` block tree from the first commit of M2 (not retrofitted later) — status:
+- [ ] CRDT snapshots persist to `.scalenote/crdt/<note-id>.bin` and reload across restarts — status:
+- [ ] Snapshot carries a markdown content hash; on mismatch the file on disk wins, snapshot is rebuilt, user is told — status:
+- [ ] Note `id` UUID in frontmatter: assigned on creation, survives rename/move, never reused — status:
+- [ ] Markdown source mode is a projection: lossless round-trip both directions, read-only while a peer is connected — status:
+- [ ] `FORMAT.md` round-trip and idempotence property tests pass over every block type — status:
+- [ ] Sync engine as its own library crate, established in M2 before any networking exists; crate compiles and tests pass with no Tauri dependency (checked in CI) — status:
+- [ ] Canvas, annotation, and folder sidecars are each their own CRDT document with their own snapshot — status:
+- [ ] Sidecars keyed by note `id`, not filename, so rename touches filenames only — status:
 - [ ] Vault create/open — status:
 - [ ] On-disk layout matches README's directory example (canvas sidecars visible, attachments visible, `.scalenote/` cache-only) — status:
 - [ ] Sidebar file tree (create/rename/move/delete) — status:
-- [ ] Markdown source editor + live preview — status:
 - [ ] Autosave + atomic writes — status:
 - [ ] SQLite index build/rebuild — status:
 - [ ] Full-text search — status:
@@ -20,17 +28,14 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Dark/light theme — status:
 
 ## Block editor (Milestone 2)
-- [ ] Block editor core (Tiptap, markdown-backed) — status:
+- [ ] Block editor core (Tiptap, `yrs`-backed) — status:
 - [ ] Slash command menu — status:
 - [ ] Hover block gutter (drag handle + per-block menu) — status:
 - [ ] Gutter elongates to span multi-block selection on hover — status:
 - [ ] Whole-block highlight while dragging (not text-only) — status:
 - [ ] Drag ghost tracks pointer with no lag (direct DOM transform, not state-driven) — status:
 - [ ] Left/right drop on a block creates a side-by-side column — status:
-- [ ] Canvas embed (`/canvas`, live view into a frame) — status:
-- [ ] Draw-over-text annotation mode (pen toggle) — status:
-- [ ] Annotation strokes anchored to block fractional coordinates, not screen pixels — status:
-- [ ] Annotations survive a window resize / different aspect ratio without misaligning (actually tested at two different sizes) — status:
+- [ ] `/canvas` slash entry present but visibly disabled with a reason during M2, not stubbed (canvas embed itself is Milestone 4 — see Canvas / drawing) — status:
 - [ ] Headings, lists, todo, toggle, quote, code, callout, divider, table, image — status:
 - [ ] Code block: single flat gray color, no two-tone header bar — status:
 - [ ] Code block: language label top-right, auto-detected — status:
@@ -45,14 +50,6 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Inline emoji, inline date/reminder mention — status:
 - [ ] General file attachment block, Mermaid diagrams — status:
 - [ ] Block-level actions: copy link to block, duplicate, move to — status:
-- [ ] Import: Obsidian vault detection, `.obsidian/` folder never touched, compatibility notice shown — status:
-- [ ] Import: Notion (Markdown+CSV or HTML export ZIP), CSVs become databases with property-type mapping — status:
-- [ ] Import: OneNote (.one/.onepkg, fully offline, no Microsoft account) — status:
-- [ ] Import: OneNote ink drawings mapped to real canvas strokes, not flattened images — status:
-- [ ] Import: Evernote (.enex, fully offline, no account) — status:
-- [ ] Import: each format tested against a real fixture + recorded expected output — status:
-- [ ] Confirmed: every importer is local-file-based only, no account/API-based import path exists — status:
-- [ ] Local file-format import: Markdown/Text, CSV, Word, PDF — status:
 - [ ] Confirmed NOT built: per-block Ask AI/AI-generated blocks, third-party embed integrations, cloud import sources, mention-a-person, block-level text/background color — status:
 - [ ] Mention fetches and caches page title, falls back to plain link on failure — status:
 - [ ] Embed loads in a sandboxed frame with no Tauri/filesystem access — status:
@@ -70,6 +67,18 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Infinite pan/zoom — status:
 - [ ] Canvas background pattern (Blank/Dots/Lines) matches exact spec: colors, spacing, red margin line — status:
 - [ ] Canvas undo/redo — status:
+- [ ] Canvas strokes are immutable records in a `Y.Map` keyed by UUID; editing replaces rather than mutates — status:
+- [ ] Placed objects' mutable fields are nested maps, so concurrent moves of different properties don't clobber — status:
+- [ ] Canvas undo/redo uses an origin-scoped `yrs` UndoManager — local undo never reverts a peer's action — status:
+- [ ] Canvas embed (`/canvas`, live read-only view into a frame) — status:
+- [ ] Draw-over-text annotation mode (pen toggle) — status:
+- [ ] Annotation strokes anchored to a block ID (minted lazily per `FORMAT.md` §3), stored as fractions of that block's box — status:
+- [ ] Annotations survive a window resize / different aspect ratio without misaligning (actually tested at two different sizes) — status:
+- [ ] Block reorder does not relocate anchored ink (anchoring is by ID, not index) — status:
+- [ ] Deleting a block tombstones its ink; undoing the delete restores it — status:
+- [ ] Peer deleting a block removes the ink on both sides, no divergent sidecars — status:
+- [ ] Pen button mapping (eraser/barrel button) — status:
+- [ ] Import: OneNote ink drawings mapped to real canvas strokes, not flattened images — status:
 
 ## Organization, database views, icons & covers (Milestone 2–3)
 - [ ] Nested pages — status:
@@ -77,7 +86,6 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Customizable sidebar: drag-to-reorder sections, Add section picker, Done to exit — status:
 - [ ] Favorites section (star/pin notes) — status:
 - [ ] Upcoming section (computed from reminders, not separately maintained) — status:
-- [ ] Shared section (P2P collaboration history, not cloud sharing) — status:
 - [ ] Pinned database view section — status:
 - [ ] Confirmed NOT built: Chats, Agents, Developer sidebar sections — status:
 - [ ] Database schema stored in folder sidecar, values in note frontmatter (not a separate data structure) — status:
@@ -87,8 +95,8 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Rollup property (computed at render time from a Relation, never stored) — status:
 - [ ] Formula property (sandboxed expression, computed at render time) — status:
 - [ ] Created time / Last edited time (from filesystem metadata) — status:
-- [ ] Created by / Last edited by (from P2P collaborator identity) — status:
-- [ ] ID property (auto-incrementing, scoped to the folder) — status:
+- [ ] Created by / Last edited by (records the local account identity, which exists from first run; peer identities simply appear here once M6 lands) — status:
+- [ ] ID property: allocated as max+1 from the folder document, merge collisions resolved deterministically by note UUID, never surfaces a duplicate — status:
 - [ ] Button property (local actions only — set property / create linked note, no arbitrary code execution) — status:
 - [ ] Confirmed NOT built: Person, Place, Map view, Dashboard/Feed views, cloud-synced database integrations — status:
 - [ ] Status property's three fixed groups (to-do/in progress/complete) with custom values nested under each — status:
@@ -119,14 +127,19 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Confirmed NOT built: Unsplash/stock-photo integration — status:
 
 ## Identity & profile (Milestone 6)
+- [ ] Account key pair generated on first run of the first install — status:
+- [ ] Device key pair per install; device certificate signed by the account key — status:
+- [ ] Device enrolment: short-code channel, rate-limited and expiring, account key transferred to the new device — status:
+- [ ] Any enrolled device can enrol another; UI states the compromise trade-off plainly — status:
+- [ ] Revocation record signed by the account key, propagates on reconnect; UI states it is best-effort — status:
+- [ ] Trust and friend nicknames key on the account public key, so they follow a person to a new device — status:
+- [ ] Nickname correctly follows a renamed peer, and a peer on a machine you've never seen — status:
 - [ ] Local username (optional, self-declared, never verified by a server) — status:
-- [ ] Local password app-lock (optional, hashed locally, no server counterpart) — status:
-- [ ] Persistent per-device key pair generated on first run — status:
-- [ ] Friend nicknames: local-only, keyed by peer public key, never transmitted — status:
-- [ ] Nickname correctly follows a renamed peer (tied to key, not display name) — status:
+- [ ] Local password app-lock (optional, hashed locally, no server counterpart; UI states plainly this is not encryption) — status:
 
 ## Real-time collaboration (peer-to-peer) (Milestone 6)
-- [ ] Note content model backed by `yrs` CRDT — status:
+- [ ] Note content model backed by `yrs` CRDT — status: built in Milestone 2, see Core
+- [ ] Shared section (P2P collaboration history, not cloud sharing) — status:
 - [ ] mDNS LAN auto-discovery — status:
 - [ ] Tailscale tailnet peer discovery (via local Tailscale client) — status:
 - [ ] Manual IPv4 entry and connection — status:
@@ -138,7 +151,17 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Reconnect after a dropped connection re-syncs cleanly — status:
 - [ ] Already-trusted peers skip the accept/reject prompt on reconnect — status:
 
-## Voice calls (Milestone 9 — after January)
+## Import from other note apps (Milestone 9 — after January)
+- [ ] Import: Obsidian vault detection, `.obsidian/` folder never touched, compatibility notice shown, and the notice states what ScaleNote *adds* to the vault (id frontmatter, block IDs, sidecars) not only what doesn't carry over — status:
+- [ ] Import: Notion (Markdown+CSV or HTML export ZIP), CSVs become databases with property-type mapping — status:
+- [ ] Import: OneNote text/formatting/tables/tags (.one/.onepkg, fully offline, no Microsoft account) — status:
+- [ ] Import: Evernote (.enex, fully offline, no account) — status:
+- [ ] Import: each format tested against a real fixture + recorded expected output, diffed on every change — status:
+- [ ] Confirmed: every importer is local-file-based only, no account/API-based import path exists — status:
+- [ ] Local file-format import: Markdown/Text, CSV, Word, PDF — status:
+- [ ] Settings → Import section built here (was previously assumed to exist from Milestone 5; it doesn't until this milestone) — status:
+
+## Voice calls (Milestone 10 — after January)
 - [ ] Opus audio over the existing QUIC connection, no second transport — status:
 - [ ] Incoming call UI: bottom-left box, profile icon, name/nickname, is-calling, Accept/Decline — status:
 - [ ] 1:1 calls — status:
@@ -154,17 +177,15 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Blocklist (silent auto-decline, no prompt shown) — status:
 - [ ] One shared account model used consistently by multi-device sync, voice call ringing, and server access — status:
 
-## Multi-device sync (Milestone 6 for single-account home server; Milestone 11 for cloud-folder-fallback refinements, after January)
-- [ ] Sync engine built as its own library crate, separate from Tauri/desktop-specific code — status:
+## Multi-device sync (Milestone 6 for single-account home server; Milestone 12 for cloud-folder-fallback refinements, after January)
 - [ ] Home server: dedicated persistent IP+port slot in Settings, reuses existing P2P engine — status:
 - [ ] Home server: patient background retry, no error noise for expected offline periods — status:
 - [ ] Cloud-folder fallback works with zero special integration (atomic writes already sufficient) — status:
-- [ ] Cloud-folder fallback: external-change detection surfaces a warning rather than silently trusting the file — status:
+- [ ] Cloud-folder fallback: hash-mismatch detection surfaces a warning and rebuilds from disk rather than silently trusting stale in-memory state (see Core's snapshot-hash rule) — status:
 - [ ] Incoming messages validated, size-limited, and rate-limited (tested with two real instances) — status:
 
-## Settings (Milestone 5)
+## Settings — General & Diagnostics (Milestone 5; AI tab is its own Milestone 11 section, see above)
 - [ ] General tab: theme, accent color (real picker), font size, editor width, sidebar width, default page mode — status:
-- [ ] Pen button mapping (eraser/barrel button) — status:
 - [ ] Connection section: P2P discovery status, port setting, 3DS pairing code generation — status:
 - [ ] No hardcoded/persisted server address field anywhere in settings — status:
 - [ ] Diagnostics section: verbose-logging toggle, "Open logs folder" button — status:
@@ -175,24 +196,35 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Verbose-logging toggle works without a rebuild — status:
 - [ ] No note content, canvas data, API keys, or pairing secrets appear in logs (actually checked, not assumed) — status:
 
-## AI assistant — Ollama/RAG (Milestone 5); Memory (Milestone 10, after January)
-- [ ] Status banner: Ollama installed/running, API key configured — status:
-- [ ] Guided Ollama install instructions with working download link — status:
-- [ ] Guided Ollama Cloud API key setup with working hyperlinks — status:
-- [ ] Hardware detection (CPU/RAM/GPU/VRAM) with manual rescan — status:
-- [ ] Five catalog tabs: Recommended / Browse Ollama / Browse HuggingFace / Ollama Cloud / Installed — status:
-- [ ] Recommended tab computes fit against actual detected hardware, not static badges — status:
+## AI assistant (Milestone 11 — after January)
+- [ ] Master enable toggle in Settings → AI; AI does not exist anywhere in the app, including in Settings, before this milestone — status:
+- [ ] Invisibility test: full app tree rendered with AI disabled contains zero AI-tagged elements (mechanical check, not a visual pass) — status:
+- [ ] No AI shortcut registers, no AI command appears in the palette, no AI sidebar section is offerable, while disabled — status:
+- [ ] Global AI panel: one dockable surface, opened by shortcut and offerable via the customizable sidebar, not wired separately into editor/database/canvas — status:
+- [ ] Context chips: active note's block-tree content auto-populates on panel open, removable before sending — status:
+- [ ] Context chips: active database view's schema + visible/filtered rows (row-capped, summarized) auto-populate — status:
+- [ ] Context chips: active canvas's text-bearing placed objects (not freehand ink) auto-populate — status:
+- [ ] Attach a file or note to a conversation; text extracted via the same local parsers as the importers, no network fetch — status:
+- [ ] Vault-search permission toggle (default off) in Settings → AI; when granted, assistant can query the local search index mid-conversation and shows what it retrieved — status:
+- [ ] Confirmed: no path outside the vault root or into `.scalenote/` internals is ever reachable from AI context assembly — status:
+- [ ] Model catalog: Recommended / Browse Ollama / Browse HuggingFace / Ollama Cloud / Installed, fit-scored against actual detected hardware — status:
 - [ ] Plain-language small-model / no-image-support / slow-on-CPU warnings on every listed model — status:
 - [ ] HuggingFace GGUF availability validated before offering a model as downloadable — status:
-- [ ] Study Assistants (RAG) — status:
-- [ ] Memory: local embeddings via Ollama, stored in existing SQLite index (no separate vector-DB service) — status:
-- [ ] Memory: extracted facts stored as real notes with frontmatter, not a hidden blob — status:
-- [ ] Memory: background extraction after conversations, LLM-primary with regex fallback — status:
-- [ ] Memory: periodic consolidation/dedup pass, actually tested for bloat prevention — status:
+- [ ] Hardware detection (CPU/RAM/GPU/VRAM) with manual rescan, fully local, never transmitted except as fit-scoring input — status:
+- [ ] System prompt field: free text, user-authored, prepended to every assembled context — status:
+- [ ] Cloud data disclosure shown next to the provider selector in Settings, not buried: states exactly what a cloud request contains — status:
+- [ ] No network call from this feature until the user sends a message with a cloud model selected, or a cloud-configured extraction pass runs — status:
+- [ ] Memory: extracted facts stored as real notes with frontmatter (type/date/confidence/source) in a dedicated `Memory/` folder — status:
+- [ ] Memory: notes get the same `yrs` document model and CRDT snapshot as any other note (no separate sync mechanism needed) — status:
+- [ ] Memory: conversations are never persisted as notes; only extraction output is — status:
+- [ ] Memory: background extraction after a session ends (not live mid-turn), LLM-primary with regex fallback — status:
+- [ ] Memory: extraction model is independently configurable from the chat model (e.g. local extraction even when chatting on Cloud) — status:
+- [ ] Memory: periodic consolidation/dedup pass, actually tested for bloat prevention, plus a size-cap-triggered out-of-cycle pass — status:
+- [ ] Memory: `Memory/` excluded from full-text search and graph view by default, with a setting to include it — status:
 - [ ] Memory: relevance-scoped retrieval, recalled memories shown to the user, not invisible — status:
-- [ ] Memory: never stores credentials/secrets, actively skips anything that looks like one — status:
-- [ ] Confirmed: memory extraction does not attempt to ingest whole documents (that's Study Assistants' job) — status:
-- [ ] No network call from this feature until the user opens/uses the AI tab — status:
+- [ ] Memory: never stores credentials/secrets, actively skips anything that looks like one even on explicit request — status:
+- [ ] Confirmed: memory extraction does not attempt to ingest whole documents (attaching a file to a conversation covers that) — status:
+- [ ] Confirmed: no second AI entry point exists anywhere else in the app (no per-block Ask AI, no AI-generated block types) — status:
 
 ## Graph & navigation (Milestone 2)
 - [ ] Local graph view — status:
@@ -205,7 +237,7 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Recently opened list — status:
 
 ## Security checklist (gated at Milestone 7)
-- [ ] Fully offline except the three documented exceptions (AI assistant tab, Mention/Embed/Bookmark link paste, Link-sourced cover images) — status:
+- [ ] Fully offline except the three documented exceptions (AI assistant, invisible and inert until explicitly enabled; Mention/Embed/Bookmark link paste; Link-sourced cover images) — status:
 - [ ] Tauri capabilities minimal, fs scoped to vault, path traversal guarded — status:
 - [ ] Strict CSP, devtools disabled in release — status:
 - [ ] Rendered HTML sanitized — status:
@@ -228,10 +260,12 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Consistent spacing scale held throughout, not varied "for visual interest" — status:
 - [ ] Compared side-by-side against Previous ScaleNote's actual screens and holds up — status:
 
-## Build (portable/installed: Milestone 1; installer polish: Milestone 7)
-- [ ] `.deb` build produced and actually run/tested on the Linux dev machine — status:
-- [ ] `npm run tauri build` produces a working Windows installer (verified on a VM/second machine, not just "it compiled") — status:
+## Build (`.deb` and portable/installed detection: Milestone 1; Windows installer polish: Milestone 7)
+- [ ] `.deb` build produced and actually run/tested on the Linux dev machine at the end of Milestone 1 — status:
 - [ ] Portable ZIP build produced, sentinel-file detection switches config path correctly — status:
+- [ ] `npm run tauri build` produces a working Windows installer (verified on a VM/second machine, not just "it compiled") — status:
 
 ## Known issues / honest notes to Ron
 (Anything that doesn't fit neatly above — surprises, things that took longer than expected, things you'd do differently with more time.)
+
+- [ ] `DECISIONS.md` exists and has an entry for every mandatory case listed in CLAUDE.md — status:
