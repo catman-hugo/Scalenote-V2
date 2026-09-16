@@ -5,19 +5,20 @@ Status legend: `done` — implemented and tried-to-break tested · `partial` —
 Update this continuously while working, not just at the end. Each section below is tagged with the milestone it belongs to, per CLAUDE.md's roadmap — sections tagged Milestone 1 through 7 are the January target; everything tagged "after January" is real, wanted, and already fully speced, just sequenced later. Don't read this whole document as one flat list that all needs to be `done` at once.
 
 ## Core (Milestone 1–2)
-- [ ] Document model: every note backed by a `yrs` `Y.XmlFragment` block tree from the first commit of M2 (not retrofitted later) — status:
-- [ ] CRDT snapshots persist to `.scalenote/crdt/<note-id>.bin` and reload across restarts — status:
-- [ ] Snapshot carries a markdown content hash; on mismatch the file on disk wins, snapshot is rebuilt, user is told — status:
-- [ ] Note `id` UUID in frontmatter: assigned on creation, survives rename/move, never reused — status:
+- [ ] Document model: every note backed by a `yrs` `Y.XmlFragment` block tree from the first commit of M2 (not retrofitted later) — status: partial (yrs integration and snapshot persistence built in sync-engine)
+- [x] CRDT snapshots persist to `.scalenote/crdt/<note-id>.bin` and reload across restarts — status: done
+- [x] Snapshot carries a markdown content hash; on mismatch the file on disk wins, snapshot is rebuilt, user is told — status: done
+- [x] Note `id` UUID in frontmatter: assigned on creation, survives rename/move, never reused — status: done
 - [ ] Markdown source mode is a projection: lossless round-trip both directions, read-only while a peer is connected — status:
 - [ ] `FORMAT.md` round-trip and idempotence property tests pass over every block type — status:
-- [ ] Sync engine as its own library crate, established in M2 before any networking exists; crate compiles and tests pass with no Tauri dependency (checked in CI) — status:
+- [x] Sync engine as its own library crate, established in M2 before any networking exists; crate compiles and tests pass with no Tauri dependency (checked in CI) — status: done
 - [ ] Canvas, annotation, and folder sidecars are each their own CRDT document with their own snapshot — status:
 - [ ] Sidecars keyed by note `id`, not filename, so rename touches filenames only — status:
-- [ ] Vault create/open — status:
-- [ ] On-disk layout matches README's directory example (canvas sidecars visible, attachments visible, `.scalenote/` cache-only) — status:
-- [ ] Sidebar file tree (create/rename/move/delete) — status:
-- [ ] Autosave + atomic writes — status:
+- [x] Vault create/open — status: done
+- [x] On-disk layout matches README's directory example (canvas sidecars visible, attachments visible, `.scalenote/` cache-only) — status: done
+- [x] Sidebar file tree (create/rename/move/delete) — status: done
+- [x] Autosave + atomic writes — status: done
+- [x] Front‑end scaffolding (React + Vite + Tauri integration) — status: done
 - [ ] SQLite index build/rebuild — status:
 - [ ] Full-text search — status:
 - [ ] Command palette — status:
@@ -25,7 +26,7 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Wikilinks + autocomplete — status:
 - [ ] Backlinks panel — status:
 - [ ] Tags + tag browser — status:
-- [ ] Dark/light theme — status:
+- [x] Dark/light theme — status: done
 
 ## Block editor (Milestone 2)
 - [ ] Block editor core (Tiptap, `yrs`-backed) — status:
@@ -191,10 +192,10 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Diagnostics section: verbose-logging toggle, "Open logs folder" button — status:
 
 ## Logging (Milestone 1)
-- [ ] Structured leveled logging via `tracing`, rotating file, one per run — status:
-- [ ] Frontend errors/notable failures forwarded to the same log file, not just console — status:
+- [x] Structured leveled logging via `tracing`, rotating file, one per run — status: done
+- [x] Frontend errors/notable failures forwarded to the same log file, not just console — status: done
 - [ ] Verbose-logging toggle works without a rebuild — status:
-- [ ] No note content, canvas data, API keys, or pairing secrets appear in logs (actually checked, not assumed) — status:
+- [x] No note content, canvas data, API keys, or pairing secrets appear in logs (actually checked, not assumed) — status: done
 
 ## AI assistant (Milestone 11 — after January)
 - [ ] Master enable toggle in Settings → AI; AI does not exist anywhere in the app, including in Settings, before this milestone — status:
@@ -247,7 +248,7 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] No `.unwrap()`/`.expect()` in post-startup Rust code — status:
 - [ ] Panic hook installed, logs instead of crashing — status:
 - [ ] Error boundaries around each major UI panel — status:
-- [ ] Killed the app mid-save and confirmed no corruption — status:
+- [x] Killed the app mid-save and confirmed no corruption — status:
 - [ ] Tried to break every feature listed above (empty/huge/weird input) — status:
 
 ## Design audit (gated at Milestone 7, the actual January acceptance bar for visual quality)
@@ -261,7 +262,7 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Compared side-by-side against Previous ScaleNote's actual screens and holds up — status:
 
 ## Build (`.deb` and portable/installed detection: Milestone 1; Windows installer polish: Milestone 7)
-- [ ] `.deb` build produced and actually run/tested on the Linux dev machine at the end of Milestone 1 — status:
+- [x] `.deb` build produced and actually run/tested on the Linux dev machine at the end of Milestone 1 — status: done
 - [ ] Portable ZIP build produced, sentinel-file detection switches config path correctly — status:
 - [ ] `npm run tauri build` produces a working Windows installer (verified on a VM/second machine, not just "it compiled") — status:
 
