@@ -41,8 +41,6 @@ export function useVault() {
     try {
       setError(null);
       const state = await invoke<VaultState>('open_vault', { vaultPath: path });
-          // Request runtime file-system permission scoped to the selected vault folder
-          await invoke('grant_vault_fs_access', { vault_path: state.path });
       setVaultPath(state.path);
       setTree(state.tree);
       setActiveNote(null);

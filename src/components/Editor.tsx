@@ -1,4 +1,6 @@
 import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import * as Y from 'yjs';
+import { invoke } from '@tauri-apps/api/core';
 import Collaboration from '@tiptap/extension-collaboration';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -36,7 +38,6 @@ const turndown = new TurndownService({
   codeBlockStyle: 'fenced',
 });
 
-// Custom rule for task list items in Turndown
 turndown.addRule('taskItems', {
   filter: (node) => {
     return (
@@ -76,6 +77,7 @@ export const Editor: React.FC<EditorProps> = ({
   onSaveImmediate,
 }) => {
   const [yDoc, setYDoc] = useState<Y.Doc | null>(null);
+  const [mode, setMode] = useState<'rich' | 'markdown'>('rich');
 
   // Load snapshot and initialize Y.Doc for the active note
   useEffect(() => {
@@ -84,12 +86,13 @@ export const Editor: React.FC<EditorProps> = ({
       return;
     }
     const doc = new Y.Doc();
-    // Load snapshot from backend if exists
     const load = async () => {
       try {
-        const [base64Data, status] = await invoke<[string, string]>("load_snapshot", { vaultPath, noteId: activeNote.id });
+        const [base64Data, status] = await invoke<[string, string]>('load_snapshot', {
+          vaultPath,
+          noteId: activeNote.id,
+        });
         if (base64Data) {
-          // Decode base64 to Uint8Array
           const binaryString = atob(base64Data);
           const len = binaryString.length;
           const bytes = new Uint8Array(len);
@@ -97,7 +100,7 @@ export const Editor: React.FC<EditorProps> = ({
             bytes[i] = binaryString.charCodeAt(i);
           }
           Y.applyUpdate(doc, bytes);
-          console.log('Loaded CRDT snapshot:', status);
+          console.log('Loaded CRDT snapshot status:', status);
         }
       } catch (e) {
         console.error('Failed to load snapshot', e);
@@ -113,7 +116,6 @@ export const Editor: React.FC<EditorProps> = ({
   const isInternalUpdateRef = useRef<boolean>(false);
   const activeNotePathRef = useRef<string | null>(null);
 
-  // Parse frontmatter and body from incoming content
   const { frontmatter, body } = useMemo(() => {
     return splitFrontmatter(content);
   }, [content]);
@@ -129,17 +131,15 @@ export const Editor: React.FC<EditorProps> = ({
         if (!yDoc || !activeNote) return;
         try {
           const update = Y.encodeStateAsUpdate(yDoc);
-          // Convert Uint8Array to base64 string
           let binary = '';
-          update.forEach((b) => (binary += String.fromCharCode(b)));
+          update.forEach((b: number) => (binary += String.fromCharCode(b)));
           const base64Data = btoa(binary);
-          // Invoke backend to save snapshot
           invoke('save_snapshot', {
             vaultPath,
             noteId: activeNote.id,
             markdown,
             update_base64: base64Data,
-          }).catch((e) => console.error('Failed to save snapshot', e));
+          }).catch((e: unknown) => console.error('Failed to save snapshot', e));
         } catch (e) {
           console.error('Error during snapshot save', e);
         }
@@ -147,34 +147,53 @@ export const Editor: React.FC<EditorProps> = ({
     [yDoc, vaultPath, activeNote]
   );
 
+  const debouncedSaveFromHtml = useMemo(
+    () =>
+      debounce((html: string) => {
+        const bodyMd = turndown.turndown(html);
+        const full = frontmatterRef.current ? `${frontmatterRef.current}\n\n${bodyMd}` : bodyMd;
+        setRawText(full);
+        isInternalUpdateRef.current = true;
+        onContentChange(full);
+        debouncedSaveSnapshot(full);
+      }, 300),
+    [onContentChange, debouncedSaveSnapshot]
+  );
 
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3, 4],
-        },
-      }),
-      Underline,
-      TaskList,
-      TaskItem.configure({
-        nested: true,
-      }),
-      // Collaboration extension for live Yrs document
-      Collaboration.configure({
-        document: yDoc,
-      }),
-    ],
-    // Set initial content only when yDoc is ready and no snapshot was applied.
-    content: yDoc ? md.render(body) : '',
-    onUpdate: ({ editor: ed }) => {
-      debouncedSaveFromHtml(ed.getHTML());
+  // Note: Tiptap documentation specifically states that when using @tiptap/extension-collaboration,
+  // `content` must NOT be passed to useEditor because the Y.Doc is the source of truth.
+  // Passing a static content prop will cause duplicate nodes or overwrite CRDT state.
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit.configure({
+          heading: {
+            levels: [1, 2, 3, 4],
+          },
+        }),
+        Underline,
+        TaskList,
+        TaskItem.configure({
+          nested: true,
+        }),
+        ...(yDoc
+          ? [
+              Collaboration.configure({
+                document: yDoc,
+              }),
+            ]
+          : []),
+      ],
+      onUpdate: ({ editor: ed }) => {
+        debouncedSaveFromHtml(ed.getHTML());
+      },
     },
-  });
+    [yDoc]
+  );
 
-  // When active note switches or external content changes, update editor
+  // Initial populate for new empty Y.Doc from disk body
   useEffect(() => {
+    if (!editor || !yDoc) return;
     const noteChanged = activeNote?.path !== activeNotePathRef.current;
     activeNotePathRef.current = activeNote?.path || null;
 
@@ -185,16 +204,15 @@ export const Editor: React.FC<EditorProps> = ({
 
     setRawText(content);
 
-    if (editor && (noteChanged || !editor.isFocused)) {
-      const html = md.render(body);
-      editor.commands.setContent(html);
+    // If the doc is newly loaded or empty, seed it with body
+    if (noteChanged && editor.isEmpty && body.trim().length > 0) {
+      editor.commands.setContent(md.render(body));
     }
-  }, [activeNote?.path, content, body, editor]);
+  }, [activeNote?.path, content, body, editor, yDoc]);
 
   // Handle mode toggle
   const handleToggleMode = useCallback(() => {
     if (mode === 'rich') {
-      // Switching from rich to markdown
       if (editor) {
         const bodyMd = turndown.turndown(editor.getHTML());
         const full = frontmatterRef.current
@@ -204,7 +222,6 @@ export const Editor: React.FC<EditorProps> = ({
       }
       setMode('markdown');
     } else {
-      // Switching from markdown to rich
       const { frontmatter: fm, body: newBody } = splitFrontmatter(rawText);
       frontmatterRef.current = fm;
       if (editor) {
@@ -242,6 +259,7 @@ export const Editor: React.FC<EditorProps> = ({
     setRawText(val);
     isInternalUpdateRef.current = true;
     onContentChange(val);
+    debouncedSaveSnapshot(val);
   };
 
   const formatTime = (d: Date) => {
@@ -267,7 +285,10 @@ export const Editor: React.FC<EditorProps> = ({
   const charCount = currentDisplayContent.length;
 
   return (
-    <main className="editor-container" style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+    <main
+      className="editor-container"
+      style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}
+    >
       <header className="editor-header">
         <div className="editor-breadcrumbs">
           <span className="editor-title">{activeNote.name}</span>
@@ -303,7 +324,7 @@ export const Editor: React.FC<EditorProps> = ({
       {/* Editor Body */}
       <div
         className="editor-body"
-        onClick={(e) => {
+        onClick={() => {
           if (mode === 'rich' && editor) {
             const docSize = editor.state.doc.content.size;
             editor.chain().focus().setTextSelection(docSize).run();

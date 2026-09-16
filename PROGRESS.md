@@ -5,7 +5,7 @@ Status legend: `done` — implemented and tried-to-break tested · `partial` —
 Update this continuously while working, not just at the end. Each section below is tagged with the milestone it belongs to, per CLAUDE.md's roadmap — sections tagged Milestone 1 through 7 are the January target; everything tagged "after January" is real, wanted, and already fully speced, just sequenced later. Don't read this whole document as one flat list that all needs to be `done` at once.
 
 ## Core (Milestone 1–2)
-- [ ] Document model: every note backed by a `yrs` `Y.XmlFragment` block tree from the first commit of M2 (not retrofitted later) — status: partial (yrs integration and snapshot persistence built in sync-engine)
+- [ ] Document model: every note backed by a `yrs` `Y.XmlFragment` block tree from the first commit of M2 (not retrofitted later) — status: partial (yrs Y.XmlFragment integration and snapshot persistence verified with automated integration test)
 - [x] CRDT snapshots persist to `.scalenote/crdt/<note-id>.bin` and reload across restarts — status: done
 - [x] Snapshot carries a markdown content hash; on mismatch the file on disk wins, snapshot is rebuilt, user is told — status: done
 - [x] Note `id` UUID in frontmatter: assigned on creation, survives rename/move, never reused — status: done
@@ -239,7 +239,7 @@ Update this continuously while working, not just at the end. Each section below 
 
 ## Security checklist (gated at Milestone 7)
 - [ ] Fully offline except the three documented exceptions (AI assistant, invisible and inert until explicitly enabled; Mention/Embed/Bookmark link paste; Link-sourced cover images) — status:
-- [ ] Tauri capabilities minimal, fs scoped to vault, path traversal guarded — status:
+- [ ] Tauri capabilities minimal, fs scoped to vault, path traversal guarded — status: partial (path traversal guarded in custom Rust commands via canonicalize_vault_root and validate_path; automated tests verified)
 - [ ] Strict CSP, devtools disabled in release — status:
 - [ ] Rendered HTML sanitized — status:
 - [ ] Dependencies pinned, `cargo audit` / `npm audit` run — status:

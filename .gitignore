@@ -8,6 +8,7 @@ npm-debug.log*
 # Rust / Tauri
 target/
 src-tauri/target/
+target_dir/
 Cargo.lock.bak
 
 # Tauri build output
@@ -26,9 +27,7 @@ src-tauri/gen/schemas/
 .DS_Store
 Thumbs.db
 
-# Logs (see the Logging spec in CLAUDE.md — these live outside the repo anyway,
-# but excluded here in case a dev build writes one locally during testing)
-*.log
+# Logs (see Logging spec in CLAUDE.md)
 logs/
 
 # Never commit real vault content used for local testing

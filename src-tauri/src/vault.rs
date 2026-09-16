@@ -52,45 +52,142 @@ pub struct VaultState {
     pub tree: Vec<FileTreeEntry>,
 }
 
+/// Canonicalizes the vault root, ensuring it exists and is a directory.
+pub fn canonicalize_vault_root(vault_root: &Path) -> Result<PathBuf, VaultError> {
+    let canonical = vault_root
+        .canonicalize()
+        .map_err(|e| VaultError::InvalidPath(format!("Invalid vault root '{}': {}", vault_root.display(), e)))?;
+    if !canonical.is_dir() {
+        return Err(VaultError::InvalidPath(format!(
+            "Vault root '{}' is not a directory",
+            vault_root.display()
+        )));
+    }
+    Ok(canonical)
+}
+
 /// Validates that a vault-relative path does not escape the vault root.
+/// Canonicalizes both the vault root and the requested path, and rejects the
+/// operation if the canonicalized target does not start with the canonicalized vault root.
 pub fn validate_path(vault_root: &Path, rel_path: &str) -> Result<PathBuf, VaultError> {
     if rel_path.starts_with('/') || rel_path.starts_with('\\') || Path::new(rel_path).is_absolute() {
         return Err(VaultError::InvalidPath("Absolute paths are forbidden".into()));
     }
-    let mut normalized = vault_root.to_path_buf();
 
-    for comp in Path::new(rel_path).components() {
+    let canonical_root = canonicalize_vault_root(vault_root)?;
+
+    // An empty path or "." refers to the vault root itself
+    if rel_path.is_empty() || rel_path == "." {
+        return Ok(canonical_root);
+    }
+
+    let p = Path::new(rel_path);
+
+    // Reject any component attempting traversal
+    for comp in p.components() {
         match comp {
-            Component::Normal(p) => normalized.push(p),
-            Component::CurDir => {}
             Component::ParentDir => {
-                // Prevent traversing above vault_root
-                if normalized == vault_root {
-                    return Err(VaultError::InvalidPath(
-                        "Path attempts to traverse above vault root".into(),
-                    ));
-                }
-                normalized.pop();
+                return Err(VaultError::InvalidPath(
+                    "Path attempts to traverse above vault root".into(),
+                ));
             }
             Component::Prefix(_) | Component::RootDir => {
                 return Err(VaultError::InvalidPath("Absolute paths are forbidden".into()));
             }
+            Component::Normal(_) | Component::CurDir => {}
         }
     }
 
-    if !normalized.starts_with(vault_root) {
-        return Err(VaultError::InvalidPath(
-            "Resolved path is outside vault root".into(),
-        ));
-    }
+    let target = canonical_root.join(p);
 
-    Ok(normalized)
+    // If target exists on disk or is a symlink (even broken)
+    if fs::symlink_metadata(&target).is_ok() {
+        let canonical_target = target.canonicalize().map_err(|e| {
+            VaultError::InvalidPath(format!("Failed to canonicalize target path '{}': {}", target.display(), e))
+        })?;
+
+        if !canonical_target.starts_with(&canonical_root) {
+            return Err(VaultError::InvalidPath(
+                "Resolved path is outside vault root".into(),
+            ));
+        }
+        Ok(canonical_target)
+    } else {
+        // Target does not exist yet (e.g. creating a new note or folder).
+        // Find closest existing ancestor directory and canonicalize it.
+        let mut existing_ancestor = target.as_path();
+        while !existing_ancestor.exists() {
+            match existing_ancestor.parent() {
+                Some(parent) => existing_ancestor = parent,
+                None => {
+                    return Err(VaultError::InvalidPath(
+                        "No existing ancestor directory found".into(),
+                    ))
+                }
+            }
+        }
+
+        let canonical_ancestor = existing_ancestor.canonicalize().map_err(|e| {
+            VaultError::InvalidPath(format!(
+                "Failed to canonicalize ancestor '{}': {}",
+                existing_ancestor.display(),
+                e
+            ))
+        })?;
+
+        if !canonical_ancestor.starts_with(&canonical_root) {
+            return Err(VaultError::InvalidPath(
+                "Ancestor directory resolves outside vault root".into(),
+            ));
+        }
+
+        let remaining = target
+            .strip_prefix(existing_ancestor)
+            .map_err(|_| VaultError::InvalidPath("Path prefix calculation failed".into()))?;
+
+        for comp in remaining.components() {
+            match comp {
+                Component::Normal(_) => {}
+                _ => {
+                    return Err(VaultError::InvalidPath(
+                        "Invalid path component in non-existent path".into(),
+                    ))
+                }
+            }
+        }
+
+        let canonical_target = canonical_ancestor.join(remaining);
+        if !canonical_target.starts_with(&canonical_root) {
+            return Err(VaultError::InvalidPath(
+                "Resolved path is outside vault root".into(),
+            ));
+        }
+
+        Ok(canonical_target)
+    }
 }
 
 /// Converts a path relative to vault root into a forward-slash string.
 fn to_relative_slash_path(vault_root: &Path, full_path: &Path) -> Result<String, VaultError> {
-    let rel = full_path
-        .strip_prefix(vault_root)
+    let canonical_root = vault_root
+        .canonicalize()
+        .unwrap_or_else(|_| vault_root.to_path_buf());
+    let canonical_full = if full_path.exists() {
+        full_path
+            .canonicalize()
+            .unwrap_or_else(|_| full_path.to_path_buf())
+    } else if let Some(parent) = full_path.parent() {
+        let canonical_parent = parent
+            .canonicalize()
+            .unwrap_or_else(|_| parent.to_path_buf());
+        canonical_parent.join(full_path.file_name().unwrap_or_default())
+    } else {
+        full_path.to_path_buf()
+    };
+
+    let rel = canonical_full
+        .strip_prefix(&canonical_root)
+        .or_else(|_| full_path.strip_prefix(vault_root))
         .map_err(|_| VaultError::InvalidPath("File not within vault root".into()))?;
     let path_str = rel
         .components()
@@ -325,14 +422,12 @@ pub fn scan_tree(vault_root: &Path, current_dir: &Path) -> Result<Vec<FileTreeEn
 
 /// Initializes standard vault directories and scans the tree.
 pub fn init_and_open_vault(vault_path_str: &str) -> Result<VaultState, VaultError> {
-    let root = PathBuf::from(vault_path_str);
-    if !root.exists() {
-        fs::create_dir_all(&root)?;
+    let raw_root = PathBuf::from(vault_path_str);
+    if !raw_root.exists() {
+        fs::create_dir_all(&raw_root)?;
     }
 
-    if !root.is_dir() {
-        return Err(VaultError::InvalidPath("Path is not a directory".into()));
-    }
+    let root = canonicalize_vault_root(&raw_root)?;
 
     // Create required initial folders (.scalenote cache/snapshots only)
     let scalenote_dir = root.join(".scalenote");
@@ -405,6 +500,11 @@ pub fn create_note(
     if clean_name.is_empty() {
         return Err(VaultError::InvalidPath("Note title cannot be empty".into()));
     }
+    if clean_name.contains('/') || clean_name.contains('\\') || clean_name.contains("..") {
+        return Err(VaultError::InvalidPath(
+            "Note title cannot contain path separators or '..'".into(),
+        ));
+    }
 
     let file_name = format!("{}.md", clean_name);
     let parent_path = validate_path(vault_root, parent_folder)?;
@@ -453,6 +553,11 @@ pub fn create_folder(
     if clean_name.is_empty() {
         return Err(VaultError::InvalidPath("Folder name cannot be empty".into()));
     }
+    if clean_name.contains('/') || clean_name.contains('\\') || clean_name.contains("..") {
+        return Err(VaultError::InvalidPath(
+            "Folder name cannot contain path separators or '..'".into(),
+        ));
+    }
 
     let parent_path = validate_path(vault_root, parent_folder)?;
     let target_dir = parent_path.join(clean_name);
@@ -485,6 +590,11 @@ pub fn rename_entry(
     let clean_new_name = new_name.trim();
     if clean_new_name.is_empty() {
         return Err(VaultError::InvalidPath("New name cannot be empty".into()));
+    }
+    if clean_new_name.contains('/') || clean_new_name.contains('\\') || clean_new_name.contains("..") {
+        return Err(VaultError::InvalidPath(
+            "New name cannot contain path separators or '..'".into(),
+        ));
     }
 
     let old_full = validate_path(vault_root, old_rel_path)?;

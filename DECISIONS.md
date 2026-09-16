@@ -46,3 +46,16 @@
 **Decision.** Added `base64 = "0.21"` to the workspace dependencies and used `base64::encode`/`decode` in the new `load_snapshot` and `save_snapshot` Tauri commands. Created a minimal React front‑end scaffold (package.json, vite.config.ts, tsconfig.json, index.html, index.tsx, App.tsx, NoteContext, Editor component) to satisfy the Milestone 2 front‑end scaffolding requirement.
 **Alternatives considered.** Hex encoding or raw Uint8Array transfer via `tauri-plugin-fs`. Base64 chosen for simplicity and broad support.
 **Cost / reversibility.** Small dependency addition and straightforward code; can be replaced with another encoding with minimal changes to the commands and front‑end.
+
+## 2026-09-16 — Move filesystem path traversal guards to Rust commands (canonicalization)
+**Context.** A prior attempt attempted to use Tauri capabilities and runtime scope requests (`app.fs_scope().request(...)`) to restrict filesystem access. However, ScaleNote does not use `@tauri-apps/plugin-fs` from the frontend — all vault reads, writes, creations, and renames are custom `#[tauri::command]` functions doing `std::fs` operations in Rust. Tauri's fs-scope system does not apply to custom Rust commands. Additionally, `app.fs_scope().request(...)` is not a real Tauri v2 API.
+**Decision.** Implemented `validate_path` and `canonicalize_vault_root` in `src-tauri/src/vault.rs` as the shared helper. Every vault command canonicalizes the vault root and the target path, asserting that the canonical target starts with the canonical vault root. This rejects relative traversal (`../`), absolute path escapes, and symlinks escaping the vault. Verified via automated integration tests in `src-tauri/tests/path_traversal_security.rs`.
+**Alternatives considered.** Relying on `@tauri-apps/plugin-fs` for vault I/O. Rejected because atomic writes, frontmatter validation, search indexing, and CRDT snapshot loading require synchronous, transactional Rust-side orchestration.
+**Cost / reversibility.** Slightly higher initial complexity in path resolution (handling non-existent targets during creation), but fully contained in `vault.rs` and cleanly tested.
+
+## 2026-09-16 — Tiptap Collaboration extension and omission of static `content` prop
+**Context.** The editor integrates Tiptap with `@tiptap/extension-collaboration` backed by `yrs`/`yjs` `Y.Doc`. Tiptap's documentation explicitly warns against passing a static `content` prop to `useEditor` alongside the Collaboration extension, as it will overwrite the Y.Doc or trigger duplicate nodes during initialization.
+**Decision.** Removed static `content` prop from `useEditor`. Allowed `Collaboration.configure({ document: yDoc })` to serve as the sole source of truth for the ProseMirror document. On first open of an empty document with existing markdown, seeded the editor via command after document readiness.
+**Alternatives considered.** Passing `content: md.render(body)` directly. Rejected per official Tiptap guidance as an anti-pattern that conflicts with CRDT sync.
+**Cost / reversibility.** Requires explicit handling when seeding brand-new unpopulated notes, but guarantees no clobbering of loaded CRDT snapshots.
+

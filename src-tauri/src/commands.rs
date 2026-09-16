@@ -7,17 +7,19 @@ use crate::search;
 
 use rusqlite::{params, Connection};
 use sync_engine::snapshot as snapshot_mod;
-use base64;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use yrs::{Doc, Update};
 use yrs::Transact;
 use yrs::updates::decoder::Decode;
 
-#[tauri::command]
-pub fn grant_vault_fs_access(vault_path: String) -> Result<(), String> {
-    // Request runtime FS permission for the given vault path.
-    // In Tauri v2, this would involve calling the runtime API to allow the path.
-    // Here we simply log and return OK; the actual permission prompt is handled by Tauri.
-    tracing::info!("Granted runtime FS access for vault", %vault_path);
+fn validate_safe_id(id: &str) -> Result<(), String> {
+    if id.is_empty() {
+        return Err("ID cannot be empty".into());
+    }
+    if id.contains('/') || id.contains('\\') || id.contains("..") {
+        return Err("Invalid ID: contains path traversal characters".into());
+    }
     Ok(())
 }
 
@@ -55,14 +57,14 @@ pub fn open_vault(vault_path: String) -> Result<VaultState, String> {
 
 #[tauri::command]
 pub fn get_vault_tree(vault_path: String) -> Result<Vec<FileTreeEntry>, String> {
-    let root = Path::new(&vault_path);
-    vault::scan_tree(root, root).map_err(|e| e.to_string())
+    let root = vault::canonicalize_vault_root(Path::new(&vault_path)).map_err(|e| e.to_string())?;
+    vault::scan_tree(&root, &root).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn read_note(vault_path: String, rel_path: String) -> Result<String, String> {
-    let root = Path::new(&vault_path);
-    vault::read_note(root, &rel_path).map_err(|e| e.to_string())
+    let root = vault::canonicalize_vault_root(Path::new(&vault_path)).map_err(|e| e.to_string())?;
+    vault::read_note(&root, &rel_path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -71,8 +73,8 @@ pub fn write_note(
     rel_path: String,
     content: String,
 ) -> Result<NoteFile, String> {
-    let root = Path::new(&vault_path);
-    vault::write_note(root, &rel_path, &content).map_err(|e| e.to_string())
+    let root = vault::canonicalize_vault_root(Path::new(&vault_path)).map_err(|e| e.to_string())?;
+    vault::write_note(&root, &rel_path, &content).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -81,8 +83,8 @@ pub fn create_note(
     parent_folder: String,
     name: String,
 ) -> Result<NoteFile, String> {
-    let root = Path::new(&vault_path);
-    vault::create_note(root, &parent_folder, &name).map_err(|e| e.to_string())
+    let root = vault::canonicalize_vault_root(Path::new(&vault_path)).map_err(|e| e.to_string())?;
+    vault::create_note(&root, &parent_folder, &name).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -91,8 +93,8 @@ pub fn create_folder(
     parent_folder: String,
     name: String,
 ) -> Result<FolderEntry, String> {
-    let root = Path::new(&vault_path);
-    vault::create_folder(root, &parent_folder, &name).map_err(|e| e.to_string())
+    let root = vault::canonicalize_vault_root(Path::new(&vault_path)).map_err(|e| e.to_string())?;
+    vault::create_folder(&root, &parent_folder, &name).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -101,47 +103,49 @@ pub fn rename_entry(
     old_rel_path: String,
     new_name: String,
 ) -> Result<String, String> {
-    let root = Path::new(&vault_path);
-    vault::rename_entry(root, &old_rel_path, &new_name).map_err(|e| e.to_string())
+    let root = vault::canonicalize_vault_root(Path::new(&vault_path)).map_err(|e| e.to_string())?;
+    vault::rename_entry(&root, &old_rel_path, &new_name).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn delete_entry(vault_path: String, rel_path: String) -> Result<(), String> {
-    let root = Path::new(&vault_path);
-    vault::delete_entry(root, &rel_path).map_err(|e| e.to_string())
+    let root = vault::canonicalize_vault_root(Path::new(&vault_path)).map_err(|e| e.to_string())?;
+    vault::delete_entry(&root, &rel_path).map_err(|e| e.to_string())
 }
 
 // ---------- Search commands ----------
 #[tauri::command]
 pub fn rebuild_search_index(vault_path: String) -> Result<(), String> {
-    let path = Path::new(&vault_path);
-    search::rebuild_index(path).map_err(|e| e.to_string())
+    let root = vault::canonicalize_vault_root(Path::new(&vault_path)).map_err(|e| e.to_string())?;
+    search::rebuild_index(&root).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn search_query(vault_path: String, query: String) -> Result<Vec<String>, String> {
-    let path = Path::new(&vault_path);
-    search::search_notes(path, &query).map_err(|e| e.to_string())
+    let root = vault::canonicalize_vault_root(Path::new(&vault_path)).map_err(|e| e.to_string())?;
+    search::search_notes(&root, &query).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn load_snapshot(vault_path: String, note_id: String) -> Result<(String, String), String> {
-    // Determine CRDT directory
-    let crdt_dir = Path::new(&vault_path).join(".scalenote").join("crdt");
-    // Find the markdown file for the note by scanning the vault for the note id
-    // Simple recursive search for .md files containing the matching frontmatter id
+    validate_safe_id(&note_id)?;
+    let root = vault::canonicalize_vault_root(Path::new(&vault_path)).map_err(|e| e.to_string())?;
+    let crdt_dir = root.join(".scalenote").join("crdt");
+
     fn find_note_markdown(vault_root: &Path, target_id: &str) -> std::io::Result<Option<String>> {
         for entry in std::fs::read_dir(vault_root)? {
             let entry = entry?;
             let path = entry.path();
             if path.is_dir() {
-                if let Some(content) = find_note_markdown(&path, target_id)? {
-                    return Ok(Some(content));
+                let name = entry.file_name().to_string_lossy().to_string();
+                if !name.starts_with('.') {
+                    if let Some(content) = find_note_markdown(&path, target_id)? {
+                        return Ok(Some(content));
+                    }
                 }
             } else if let Some(ext) = path.extension() {
                 if ext == "md" {
                     let data = std::fs::read_to_string(&path)?;
-                    // Look for frontmatter id line
                     if data.contains(&format!("id: {}", target_id)) {
                         return Ok(Some(data));
                     }
@@ -151,17 +155,16 @@ pub fn load_snapshot(vault_path: String, note_id: String) -> Result<(String, Str
         Ok(None)
     }
 
-    let markdown = find_note_markdown(Path::new(&vault_path), &note_id)
+    let markdown = find_note_markdown(&root, &note_id)
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Note with id {} not found", note_id))?;
 
     match snapshot_mod::load_snapshot(&crdt_dir, &note_id, &markdown) {
         Ok((_doc_opt, status)) => {
-            // Load raw snapshot file if it exists for base64 return
             let snapshot_path = snapshot_mod::snapshot_path(&crdt_dir, &note_id);
             let base64_data = if snapshot_path.exists() {
                 let bytes = std::fs::read(&snapshot_path).map_err(|e| e.to_string())?;
-                base64::encode(&bytes)
+                BASE64.encode(&bytes)
             } else {
                 String::new()
             };
@@ -178,10 +181,12 @@ pub fn save_snapshot(
     markdown: String,
     update_base64: String,
 ) -> Result<(), String> {
-    let crdt_dir = Path::new(&vault_path).join(".scalenote").join("crdt");
-    let update_bytes = base64::decode(&update_base64).map_err(|e| e.to_string())?;
-    // Recreate Doc from update bytes
-    let mut doc = Doc::new();
+    validate_safe_id(&note_id)?;
+    let root = vault::canonicalize_vault_root(Path::new(&vault_path)).map_err(|e| e.to_string())?;
+    let crdt_dir = root.join(".scalenote").join("crdt");
+    let update_bytes = BASE64.decode(&update_base64).map_err(|e| e.to_string())?;
+
+    let doc = Doc::new();
     {
         let mut txn = doc.transact_mut();
         let update = Update::decode_v1(&update_bytes).map_err(|e| e.to_string())?;
@@ -193,7 +198,8 @@ pub fn save_snapshot(
 // ---------- Additional utility commands ----------
 #[tauri::command]
 pub fn search_titles(vault_path: String, prefix: String) -> Result<Vec<String>, String> {
-    let db_path = Path::new(&vault_path).join(".scalenote").join("search.db");
+    let root = vault::canonicalize_vault_root(Path::new(&vault_path)).map_err(|e| e.to_string())?;
+    let db_path = root.join(".scalenote").join("search.db");
     let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
     let pattern = format!("%{}%", prefix);
     let mut stmt = conn.prepare("SELECT title FROM notes WHERE title LIKE ?1 ORDER BY title LIMIT 10")
@@ -208,7 +214,8 @@ pub fn search_titles(vault_path: String, prefix: String) -> Result<Vec<String>, 
 
 #[tauri::command]
 pub fn find_backlinks(vault_path: String, note_title: String) -> Result<Vec<String>, String> {
-    let db_path = Path::new(&vault_path).join(".scalenote").join("search.db");
+    let root = vault::canonicalize_vault_root(Path::new(&vault_path)).map_err(|e| e.to_string())?;
+    let db_path = root.join(".scalenote").join("search.db");
     let conn = Connection::open(&db_path).map_err(|e| e.to_string())?;
     let pattern = format!("%[[{}]]%", note_title);
     let mut stmt = conn.prepare("SELECT path FROM notes WHERE body LIKE ?1")
@@ -232,9 +239,8 @@ pub fn set_verbose_logging(enabled: bool) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn open_logs_folder(app: tauri::AppHandle) -> Result<(), String> {
+pub async fn open_logs_folder(_app: tauri::AppHandle) -> Result<(), String> {
     let config_dir = portable::get_config_dir();
     let log_dir = config_dir.join("logs");
     tauri_plugin_shell::open::open(None, log_dir.to_string_lossy().to_string(), None).map_err(|e| e.to_string())
 }
-
