@@ -2,11 +2,11 @@
 
 A local-first, offline note-taking desktop app combining ideas from Obsidian, Notion, AFFiNE, OneNote, and AppFlowy. Built with Tauri (Rust + TypeScript/React).
 
-This is an experimental build carried out by an autonomous coding agent (gpt-oss:120b-cloud via Claude Code) as a capability test. There is no cloud sync, no account system, no telemetry, no network access at all. Everything lives in a local folder ("vault") on disk.
+There is no cloud sync, no account system, no telemetry, no network access at all. Everything lives in a local folder ("vault") on disk.
 
 ## Branding
 
-This project reuses the name and logo from Previous ScaleNote — Ron's own earlier project, same owner, intentional rebrand rather than a fresh identity. Use the actual logo/icon assets from Previous ScaleNote's codebase directly (`apps/desktop/public/brand/rc5-logo.png` and the icon set under `apps/desktop/src-tauri/icons/` in that project) rather than generating new artwork — Ron will provide these files. Match the exact capitalization "ScaleNote" (one word, capital S and N), consistent with how Previous ScaleNote styled its own name in its build artifacts.
+This project reuses the name and logo from Previous ScaleNote, same owner, intentional rebrand rather than a fresh identity. Use the actual logo/icon assets from Previous ScaleNote's codebase directly (`apps/desktop/public/brand/rc5-logo.png` and the icon set under `apps/desktop/src-tauri/icons/` in that project) rather than generating new artwork — Ron will provide these files. Match the exact capitalization "ScaleNote" (one word, capital S and N), consistent with how Previous ScaleNote styled its own name in its build artifacts.
 
 ## Why these five apps
 
