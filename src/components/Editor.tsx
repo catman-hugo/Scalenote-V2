@@ -23,6 +23,7 @@ interface EditorProps {
   isSaving: boolean;
   lastSaved: Date | null;
   peerCount?: number;
+  mode?: 'rich' | 'markdown';
   onContentChange: (content: string) => void;
   onSaveImmediate: () => void;
 }
@@ -75,11 +76,14 @@ export const Editor: React.FC<EditorProps> = ({
   isSaving,
   lastSaved,
   peerCount = 0,
+  mode: propMode,
   onContentChange,
   onSaveImmediate,
 }) => {
   const [yDoc, setYDoc] = useState<Y.Doc | null>(null);
-  const [mode, setMode] = useState<'rich' | 'markdown'>('rich');
+  const [internalMode, setInternalMode] = useState<'rich' | 'markdown'>(propMode || 'rich');
+  const mode = propMode !== undefined ? propMode : internalMode;
+  const setMode = setInternalMode;
   const isReadOnlyFromPeers = peerCount > 0;
 
   // Load snapshot and initialize Y.Doc for the active note

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "test": "vitest run",
     "preview": "vite preview",
     "tauri": "tauri",
     "tauri:build": "tauri build",
@@ -29,11 +30,15 @@
     "yjs": "^13"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.3",
     "@types/lodash.debounce": "^4.0.9",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4",
+    "jsdom": "^29.1.1",
     "typescript": "^5",
-    "vite": "^4"
+    "vite": "^4",
+    "vitest": "^4.1.11"
   }
 }
