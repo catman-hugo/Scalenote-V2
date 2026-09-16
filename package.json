@@ -1,0 +1,39 @@
+{
+  "name": "scalenote-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:build": "tauri build",
+    "tauri:dev": "tauri dev"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "@tiptap/extension-collaboration": "^2",
+    "@tiptap/extension-task-item": "^2.27.3",
+    "@tiptap/extension-task-list": "^2.27.3",
+    "@tiptap/extension-underline": "^2.27.3",
+    "@tiptap/react": "^2",
+    "@tiptap/starter-kit": "^2",
+    "@types/markdown-it": "^14.2.0",
+    "@types/turndown": "^5.0.6",
+    "fuse.js": "^7",
+    "lodash.debounce": "^4",
+    "markdown-it": "^15.0.2",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "turndown": "^7.2.4",
+    "yjs": "^13"
+  },
+  "devDependencies": {
+    "@types/lodash.debounce": "^4.0.9",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^4",
+    "typescript": "^5",
+    "vite": "^4"
+  }
+}
