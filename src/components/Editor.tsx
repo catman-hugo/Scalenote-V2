@@ -22,6 +22,7 @@ interface EditorProps {
   vaultPath?: string | null;
   isSaving: boolean;
   lastSaved: Date | null;
+  peerCount?: number;
   onContentChange: (content: string) => void;
   onSaveImmediate: () => void;
 }
@@ -73,11 +74,13 @@ export const Editor: React.FC<EditorProps> = ({
   vaultPath,
   isSaving,
   lastSaved,
+  peerCount = 0,
   onContentChange,
   onSaveImmediate,
 }) => {
   const [yDoc, setYDoc] = useState<Y.Doc | null>(null);
   const [mode, setMode] = useState<'rich' | 'markdown'>('rich');
+  const isReadOnlyFromPeers = peerCount > 0;
 
   // Load snapshot and initialize Y.Doc for the active note
   useEffect(() => {
@@ -239,6 +242,8 @@ export const Editor: React.FC<EditorProps> = ({
       return;
     }
 
+    if (isReadOnlyFromPeers) return;
+
     if (e.key === 'Tab') {
       e.preventDefault();
       const ta = textareaRef.current;
@@ -256,6 +261,7 @@ export const Editor: React.FC<EditorProps> = ({
   };
 
   const handleRawChange = (val: string) => {
+    if (isReadOnlyFromPeers) return;
     setRawText(val);
     isInternalUpdateRef.current = true;
     onContentChange(val);
@@ -346,16 +352,48 @@ export const Editor: React.FC<EditorProps> = ({
             </div>
           </>
         ) : (
-          <textarea
-            ref={textareaRef}
-            className="markdown-textarea"
-            value={rawText}
-            onChange={(e) => handleRawChange(e.target.value)}
-            onKeyDown={handleRawKeyDown}
-            placeholder="Start writing in Markdown..."
-            spellCheck={false}
-            style={{ width: '100%', height: '100%', padding: '16px 24px', border: 'none', outline: 'none' }}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100%' }}>
+            {isReadOnlyFromPeers && (
+              <div
+                className="peer-readonly-banner"
+                style={{
+                  backgroundColor: '#fef3c7',
+                  color: '#92400e',
+                  padding: '10px 16px',
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  borderBottom: '1px solid #fde68a',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span>⚠️</span>
+                <span>
+                  Markdown source mode is read-only while {peerCount} collaborator{peerCount > 1 ? 's are' : ' is'} connected. Switch to Rich Text mode to edit collaboratively.
+                </span>
+              </div>
+            )}
+            <textarea
+              ref={textareaRef}
+              className="markdown-textarea"
+              value={rawText}
+              readOnly={isReadOnlyFromPeers}
+              onChange={(e) => handleRawChange(e.target.value)}
+              onKeyDown={handleRawKeyDown}
+              placeholder={isReadOnlyFromPeers ? "Note is read-only while peers are connected" : "Start writing in Markdown..."}
+              spellCheck={false}
+              style={{
+                width: '100%',
+                flex: 1,
+                padding: '16px 24px',
+                border: 'none',
+                outline: 'none',
+                backgroundColor: isReadOnlyFromPeers ? 'var(--color-bg-secondary, #f9fafb)' : 'inherit',
+                cursor: isReadOnlyFromPeers ? 'not-allowed' : 'text',
+              }}
+            />
+          </div>
         )}
       </div>
 

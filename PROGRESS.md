@@ -9,8 +9,8 @@ Update this continuously while working, not just at the end. Each section below 
 - [x] CRDT snapshots persist to `.scalenote/crdt/<note-id>.bin` and reload across restarts — status: done
 - [x] Snapshot carries a markdown content hash; on mismatch the file on disk wins, snapshot is rebuilt, user is told — status: done
 - [x] Note `id` UUID in frontmatter: assigned on creation, survives rename/move, never reused — status: done
-- [ ] Markdown source mode is a projection: lossless round-trip both directions, read-only while a peer is connected — status:
-- [ ] `FORMAT.md` round-trip and idempotence property tests pass over every block type — status:
+- [ ] Markdown source mode is a projection: lossless round-trip both directions, read-only while a peer is connected — status: partial (UI read-only gating and peer warning banner implemented; end-to-end multi-device verification deferred to Milestone 6 peer transport)
+- [x] `FORMAT.md` round-trip and idempotence property tests pass over every block type — status: done (implemented in sync-engine::format with proptest suite and foreign syntax preservation)
 - [x] Sync engine as its own library crate, established in M2 before any networking exists; crate compiles and tests pass with no Tauri dependency (checked in CI) — status: done
 - [ ] Canvas, annotation, and folder sidecars are each their own CRDT document with their own snapshot — status:
 - [ ] Sidecars keyed by note `id`, not filename, so rename touches filenames only — status:
