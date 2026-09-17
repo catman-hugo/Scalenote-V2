@@ -10,6 +10,7 @@ import type { Editor } from '@tiptap/core';
 import { Suggestion } from '@tiptap/suggestion';
 import { ReactRenderer } from '@tiptap/react';
 import { SlashMenuDropdown } from './SlashMenuDropdown';
+import { CALLOUT_TYPES, CALLOUT_ICONS } from './CalloutNode';
 
 interface SlashCommand {
   id: string;
@@ -19,9 +20,27 @@ interface SlashCommand {
   execute: (props: { editor: Editor; range: { from: number; to: number } }) => void;
 }
 
-const getCommands = (): SlashCommand[] => [
-  {
-    id: 'heading1',
+const getCommands = (): SlashCommand[] => {
+  const calloutCommands: SlashCommand[] = CALLOUT_TYPES.map((type) => ({
+    id: `callout-${type}`,
+    label: `Callout: ${type.charAt(0).toUpperCase() + type.slice(1)}`,
+    description: `Insert a ${type} callout block`,
+    icon: CALLOUT_ICONS[type],
+    execute: ({ editor, range }) =>
+      editor.chain().focus().deleteRange(range).insertContent({
+        type: 'callout',
+        attrs: {
+          calloutType: type,
+          collapse: null,
+          title: '',
+        },
+      }).run(),
+  }));
+
+  return [
+    ...calloutCommands,
+    {
+      id: 'heading1',
     label: 'Heading 1',
     description: 'Large section heading',
     icon: 'H1',
@@ -93,6 +112,7 @@ const getCommands = (): SlashCommand[] => [
       editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
   },
 ];
+}
 
 export function createSlashMenuExtension() {
   const COMMANDS = getCommands();

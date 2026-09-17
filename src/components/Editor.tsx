@@ -15,6 +15,7 @@ import Toolbar from './Toolbar';
 import WikilinkAutocomplete from './WikilinkAutocomplete';
 import { createSlashMenuExtension } from './editor/extensions/SlashMenu';
 import { ClickToCreateParagraph } from './editor/extensions/ClickToCreateParagraph';
+import { CalloutNode, CALLOUT_TYPES, CALLOUT_ICONS } from './editor/extensions/CalloutNode';
 import type { NoteFile } from '../types';
 
 interface EditorProps {
@@ -53,6 +54,55 @@ turndown.addRule('taskItems', {
     const isChecked = (node as Element).getAttribute('data-checked') === 'true';
     const cleanContent = content.trim();
     return `- [${isChecked ? 'x' : ' '}] ${cleanContent}\n`;
+  },
+});
+
+// Turndown rule for callout blocks
+turndown.addRule('callout', {
+  filter: (node) => {
+    return node.nodeName === 'DIV' && node.getAttribute && node.getAttribute('data-type') === 'callout';
+  },
+  replacement: (content, node) => {
+    const el = node as Element;
+    const calloutType = el.getAttribute('data-callout-type') || 'note';
+    const collapse = el.getAttribute('data-collapse') || '';
+    const title = el.getAttribute('data-title') || '';
+
+    // FORMAT.md format: > [!type]+ or > [!type]- (collapse indicator AFTER the bracket)
+    let md = `> [!${calloutType}]${collapse}`;
+    if (title.trim()) {
+      md += ` ${title.trim()}`;
+    }
+
+    // Extract body content from callout-content div
+    const contentDiv = el.querySelector('.callout-content');
+    if (contentDiv) {
+      // Get all text content, preserving line breaks
+      const bodyLines: string[] = [];
+      const walker = document.createTreeWalker(contentDiv, NodeFilter.SHOW_TEXT, null);
+      let textNode;
+      while ((textNode = walker.nextNode())) {
+        const text = textNode.textContent || '';
+        if (text.trim()) {
+          bodyLines.push(text.trim());
+        }
+      }
+      // Also check for paragraph elements
+      const paragraphs = contentDiv.querySelectorAll('p');
+      if (paragraphs.length > 0 && bodyLines.length === 0) {
+        paragraphs.forEach((p) => {
+          const text = p.textContent || '';
+          if (text.trim()) {
+            bodyLines.push(text.trim());
+          }
+        });
+      }
+      for (const line of bodyLines) {
+        md += `\n> ${line}`;
+      }
+    }
+
+    return md + '\n';
   },
 });
 
@@ -188,6 +238,7 @@ export const Editor: React.FC<EditorProps> = ({
         }),
         SlashMenuExtension,
         ClickToCreateParagraph,
+        CalloutNode,
         ...(yDoc
           ? [
               Collaboration.configure({
