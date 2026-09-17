@@ -59,3 +59,11 @@
 **Alternatives considered.** Passing `content: md.render(body)` directly. Rejected per official Tiptap guidance as an anti-pattern that conflicts with CRDT sync.
 **Cost / reversibility.** Requires explicit handling when seeding brand-new unpopulated notes, but guarantees no clobbering of loaded CRDT snapshots.
 
+## 2026-09-16 — FORMAT.md bidirectional parse/serialize in sync-engine and proptest suite
+**Context.** Milestone 2 and FORMAT.md require a deterministic, lossless parser and serializer for all ScaleNote markdown formats, block IDs, directives, and frontmatter, with proof via bidirectional property testing (`parse(serialize(doc)) == doc` and `serialize(parse(text)) == text`), plus byte-for-byte preservation of unknown/raw foreign syntax.
+**Decision.** Implemented `sync_engine::format` AST, recursive-descent/line-oriented parser, and deterministic serializer conforming to FORMAT.md rules (ATX headings, no trailing whitespace, single blank line separation). Added `proptest = "1"` (MIT / Apache-2.0) as a dev-dependency to test round-trip idempotence against randomly generated document trees.
+**Alternatives considered.** Using a third-party CommonMark AST crate directly. Rejected because generic markdown crates do not support ScaleNote's directive syntax (`:::toggle`, `::::columns`, `::::tabs`, `:::synced`, `::file`, `::bookmark`, etc.), block ID trailing anchors (`^id`), and lossless foreign raw syntax preservation without dropping or reformatting unsupported blocks.
+**Cost / reversibility.** Parser is decoupled in `sync-engine` with zero Tauri dependencies. AST can be augmented or migrated easily if new block types are specified.
+
+
+

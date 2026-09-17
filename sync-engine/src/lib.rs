@@ -5,6 +5,7 @@
 //! See docs/ARCHITECTURE.md "Shared sync engine crate" for the boundary rules.
 
 pub mod snapshot;
+pub mod format;
 
 #[cfg(test)]
 mod tests {

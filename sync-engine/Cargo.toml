@@ -13,3 +13,6 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 yrs = { workspace = true }
 sha2 = { workspace = true }
+
+[dev-dependencies]
+proptest = "1.11.0"
