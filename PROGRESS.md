@@ -31,7 +31,7 @@ Update this continuously while working, not just at the end. Each section below 
 - [x] Dark/light theme — status: done
 
 ## Block editor (Milestone 2)
-- [ ] Block editor core (Tiptap, `yrs`-backed) — status:
+- [ ] Block editor core (Tiptap, `yrs`-backed) — status: partial (Tiptap installed and rendering as default mode; Collaboration extension wired with `document: yDoc`; yDoc loaded from real CRDT snapshot on every note open via `load_snapshot` Tauri command; `crdt_snapshot_integration` test verifies snapshot persist/reload lifecycle and passes. Not yet done: hover block gutter, drag handles, per-block menus, column layout, all named block types beyond StarterKit defaults)
 - [ ] Slash command menu — status:
 - [ ] Hover block gutter (drag handle + per-block menu) — status:
 - [ ] Gutter elongates to span multi-block selection on hover — status:
