@@ -13,7 +13,8 @@ import TurndownService from 'turndown';
 
 import Toolbar from './Toolbar';
 import WikilinkAutocomplete from './WikilinkAutocomplete';
-import SlashCommandOverlay from './SlashCommandOverlay';
+import { createSlashMenuExtension } from './editor/extensions/SlashMenu';
+import { ClickToCreateParagraph } from './editor/extensions/ClickToCreateParagraph';
 import type { NoteFile } from '../types';
 
 interface EditorProps {
@@ -170,6 +171,8 @@ export const Editor: React.FC<EditorProps> = ({
   // Note: Tiptap documentation specifically states that when using @tiptap/extension-collaboration,
   // `content` must NOT be passed to useEditor because the Y.Doc is the source of truth.
   // Passing a static content prop will cause duplicate nodes or overwrite CRDT state.
+  const SlashMenuExtension = useMemo(() => createSlashMenuExtension(), []);
+
   const editor = useEditor(
     {
       extensions: [
@@ -183,6 +186,8 @@ export const Editor: React.FC<EditorProps> = ({
         TaskItem.configure({
           nested: true,
         }),
+        SlashMenuExtension,
+        ClickToCreateParagraph,
         ...(yDoc
           ? [
               Collaboration.configure({
@@ -195,7 +200,7 @@ export const Editor: React.FC<EditorProps> = ({
         debouncedSaveFromHtml(ed.getHTML());
       },
     },
-    [yDoc]
+    [yDoc, SlashMenuExtension]
   );
 
   // Initial populate for new empty Y.Doc from disk body
@@ -211,9 +216,14 @@ export const Editor: React.FC<EditorProps> = ({
 
     setRawText(content);
 
-    // If the doc is newly loaded or empty, seed it with body
-    if (noteChanged && editor.isEmpty && body.trim().length > 0) {
-      editor.commands.setContent(md.render(body));
+    // If the doc is newly loaded or empty, seed it with body or an empty paragraph
+    if (noteChanged && editor.isEmpty) {
+      if (body.trim().length > 0) {
+        editor.commands.setContent(md.render(body));
+      } else {
+        // For new empty notes, seed with an empty paragraph so user can start typing
+        editor.commands.setContent('<p></p>');
+      }
     }
   }, [activeNote?.path, content, body, editor, yDoc]);
 
@@ -334,10 +344,14 @@ export const Editor: React.FC<EditorProps> = ({
       {/* Editor Body */}
       <div
         className="editor-body"
-        onClick={() => {
+        onClick={(e) => {
           if (mode === 'rich' && editor) {
-            const docSize = editor.state.doc.content.size;
-            editor.chain().focus().setTextSelection(docSize).run();
+            // If clicking on the editor container itself (not on existing content),
+            // focus at the end to allow typing
+            if (e.target === e.currentTarget) {
+              const docSize = editor.state.doc.content.size;
+              editor.chain().focus().setTextSelection(docSize).run();
+            }
           }
         }}
         style={{
@@ -350,8 +364,7 @@ export const Editor: React.FC<EditorProps> = ({
         {mode === 'rich' ? (
           <>
             <WikilinkAutocomplete editor={editor} />
-            <SlashCommandOverlay editor={editor} />
-            <div className="tiptap-wrapper" style={{ maxWidth: '840px', margin: '0 auto' }}>
+            <div className="tiptap-wrapper">
               <EditorContent editor={editor} className="tiptap-content" />
             </div>
           </>

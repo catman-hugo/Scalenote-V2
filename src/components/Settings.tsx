@@ -281,7 +281,7 @@ const Settings: React.FC<SettingsProps> = ({
               <div className="settings-row" style={rowStyle}>
                 <div>
                   <div style={labelStyle}>Version</div>
-                  <div style={descStyle}>ScaleNote v0.2.1 (Milestone 2 Core Edition)</div>
+                  <div style={descStyle}>ScaleNote v0.2.2 (Milestone 2 Core Edition)</div>
                 </div>
               </div>
             </div>

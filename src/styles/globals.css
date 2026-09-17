@@ -21,6 +21,10 @@
   --danger-hover: #c93b32;
   --success-color: #57ab5a;
   --status-bar-bg: #181818;
+  
+  /* Editor layout */
+  --editor-max-width: 720px;
+  --editor-font-size: 15px;
 }
 
 [data-theme='light'] {
@@ -42,6 +46,10 @@
   --danger-hover: #a40e26;
   --success-color: #1a7f37;
   --status-bar-bg: #f6f8fa;
+  
+  /* Editor layout */
+  --editor-max-width: 720px;
+  --editor-font-size: 15px;
 }
 
 * {
@@ -501,14 +509,45 @@ input:focus, textarea:focus {
   margin-bottom: 12px;
 }
 
-/* Tiptap content styling */
+/* Tiptap wrapper and content styling */
+.tiptap-wrapper {
+  max-width: var(--editor-max-width, 720px);
+  width: 100%;
+  margin: 0 auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .tiptap-content {
   outline: none;
   min-height: 400px;
   user-select: text;
   color: var(--text-primary);
-  font-size: var(--font-size-base, 15px);
+  font-size: var(--editor-font-size, 15px);
   line-height: 1.65;
+  flex: 1;
+}
+
+.tiptap-content p {
+  margin-bottom: 0.75em;
+}
+
+.tiptap-content p.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-muted);
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+
+/* ProseMirror focus styles */
+.tiptap-content:focus,
+.ProseMirror:focus {
+  outline: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .tiptap-content p {
