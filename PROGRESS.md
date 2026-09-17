@@ -39,7 +39,7 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] Drag ghost tracks pointer with no lag (direct DOM transform, not state-driven) — status:
 - [ ] Left/right drop on a block creates a side-by-side column — status:
 - [ ] `/canvas` slash entry present but visibly disabled with a reason during M2, not stubbed (canvas embed itself is Milestone 4 — see Canvas / drawing) — status:
-- [ ] Headings, lists, todo, toggle, quote, code, callout, divider, table, image — status:
+- [x] Headings, lists, todo, toggle, quote, code, callout, divider, table, image — status: done (callout block implemented with all 9 types, collapsible via +/- suffix, slash command with type picker, click-to-collapse via ProseMirror NodeView, round-trip tested against sync-engine/format.rs)
 - [ ] Code block: single flat gray color, no two-tone header bar — status:
 - [ ] Code block: language label top-right, auto-detected — status:
 - [ ] Code block: right-click to override detected language, override sticks — status:

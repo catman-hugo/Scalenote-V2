@@ -21,6 +21,18 @@
   --danger-hover: #c93b32;
   --success-color: #57ab5a;
   --status-bar-bg: #181818;
+  
+  /* Callout colors - match Obsidian/Previous ScaleNote */
+  --color-callout-note: #4A7FB5;
+  --color-callout-info: #0969da;
+  --color-callout-tip: #3fb950;
+  --color-callout-success: #1a7f37;
+  --color-callout-warning: #9a6700;
+  --color-callout-danger: #cf222e;
+  --color-callout-question: #57606a;
+  --color-callout-quote: #57606a;
+  --color-callout-example: #57606a;
+  --color-callout-bg: rgba(0, 0, 0, 0.05);
 }
 
 [data-theme='light'] {
@@ -42,6 +54,18 @@
   --danger-hover: #a40e26;
   --success-color: #1a7f37;
   --status-bar-bg: #f6f8fa;
+  
+  /* Callout colors - match Obsidian/Previous ScaleNote */
+  --color-callout-note: #4A7FB5;
+  --color-callout-info: #0969da;
+  --color-callout-tip: #3fb950;
+  --color-callout-success: #1a7f37;
+  --color-callout-warning: #9a6700;
+  --color-callout-danger: #cf222e;
+  --color-callout-question: #57606a;
+  --color-callout-quote: #57606a;
+  --color-callout-example: #57606a;
+  --color-callout-bg: rgba(0, 0, 0, 0.03);
 }
 
 * {
@@ -611,5 +635,114 @@ input:focus, textarea:focus {
   border: none;
   border-top: 1px solid var(--border-color);
   margin: 1.5em 0;
+}
+
+/* Callout block styling */
+.tiptap-content [data-type="callout"] {
+  display: flex;
+  flex-direction: column;
+  border-radius: 6px;
+  margin: 0.5rem 0;
+  padding: 2px;
+  background-color: var(--color-callout-bg);
+  border-left: 3px solid var(--color-accent);
+}
+
+/* Set border color based on callout type */
+.tiptap-content [data-type="callout"][data-callout-type="note"] {
+  --callout-accent: var(--color-callout-note);
+  border-left-color: var(--callout-accent);
+}
+.tiptap-content [data-type="callout"][data-callout-type="info"] {
+  --callout-accent: var(--color-callout-info);
+  border-left-color: var(--callout-accent);
+}
+.tiptap-content [data-type="callout"][data-callout-type="tip"] {
+  --callout-accent: var(--color-callout-tip);
+  border-left-color: var(--callout-accent);
+}
+.tiptap-content [data-type="callout"][data-callout-type="success"] {
+  --callout-accent: var(--color-callout-success);
+  border-left-color: var(--callout-accent);
+}
+.tiptap-content [data-type="callout"][data-callout-type="warning"] {
+  --callout-accent: var(--color-callout-warning);
+  border-left-color: var(--callout-accent);
+}
+.tiptap-content [data-type="callout"][data-callout-type="danger"] {
+  --callout-accent: var(--color-callout-danger);
+  border-left-color: var(--callout-accent);
+}
+.tiptap-content [data-type="callout"][data-callout-type="question"] {
+  --callout-accent: var(--color-callout-question);
+  border-left-color: var(--callout-accent);
+}
+.tiptap-content [data-type="callout"][data-callout-type="quote"] {
+  --callout-accent: var(--color-callout-quote);
+  border-left-color: var(--callout-accent);
+}
+.tiptap-content [data-type="callout"][data-callout-type="example"] {
+  --callout-accent: var(--color-callout-example);
+  border-left-color: var(--callout-accent);
+}
+
+/* Callout header */
+.tiptap-content [data-type="callout"] .callout-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2px 8px;
+  font-size: 14px;
+  user-select: none;
+  cursor: pointer;
+}
+.tiptap-content [data-type="callout"] .callout-header:hover {
+  background-color: var(--bg-sidebar-hover, #2a2d2e);
+}
+
+/* Callout icon and type label use the accent color */
+.tiptap-content [data-type="callout"] .callout-icon,
+.tiptap-content [data-type="callout"] .callout-type-label {
+  color: var(--callout-accent);
+}
+.tiptap-content [data-type="callout"] .callout-icon {
+  font-size: 1.1em;
+  flex-shrink: 0;
+}
+.tiptap-content [data-type="callout"] .callout-type-label {
+  font-weight: 600;
+  font-size: 0.9em;
+}
+
+/* Callout title */
+.tiptap-content [data-type="callout"] .callout-title {
+  flex: 1;
+  font-weight: 500;
+  min-width: 0;
+}
+
+/* Callout collapse indicator */
+.tiptap-content [data-type="callout"] .callout-collapse-indicator {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 0.9em;
+}
+
+/* Callout content */
+.tiptap-content [data-type="callout"] .callout-content {
+  padding: 2px 8px 8px;
+  margin-top: 2px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* Collapsed callouts hide content */
+.tiptap-content [data-type="callout"][data-collapsed="true"] .callout-content {
+  display: none;
+}
+
+/* ProseMirror selection */
+.tiptap-content [data-type="callout"].ProseMirror-selectednode {
+  outline: 2px solid var(--color-accent);
+  border-radius: 3px;
 }
 

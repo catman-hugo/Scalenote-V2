@@ -2989,7 +2989,7 @@ dependencies = [
 
 [[package]]
 name = "scalenote"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -3510,7 +3510,7 @@ dependencies = [
 
 [[package]]
 name = "sync-engine"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "anyhow",
  "chrono",
