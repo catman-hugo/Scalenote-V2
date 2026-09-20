@@ -16,6 +16,7 @@ import WikilinkAutocomplete from './WikilinkAutocomplete';
 import { createSlashMenuExtension } from './editor/extensions/SlashMenu';
 import { ClickToCreateParagraph } from './editor/extensions/ClickToCreateParagraph';
 import { CalloutNode, CALLOUT_TYPES, CALLOUT_ICONS } from './editor/extensions/CalloutNode';
+import { ToggleNode } from './editor/extensions/ToggleNode';
 import type { NoteFile } from '../types';
 
 interface EditorProps {
@@ -103,6 +104,76 @@ turndown.addRule('callout', {
     }
 
     return md + '\n';
+  },
+});
+
+// Turndown rule for toggle blocks
+turndown.addRule('toggle', {
+  filter: (node) => {
+    return node.nodeName === 'DIV' && node.getAttribute && node.getAttribute('data-type') === 'toggle';
+  },
+  replacement: (content, node) => {
+    const el = node as Element;
+    const asHeading = el.getAttribute('data-as-heading');
+    const open = el.getAttribute('data-open') === 'true';
+
+    // Build attributes per FORMAT.md §4.3
+    const attrs: string[] = [];
+    if (asHeading) {
+      attrs.push(`as=h${asHeading}`);
+    }
+    if (open) {
+      attrs.push('open');
+    }
+    const attrSuffix = attrs.length > 0 ? `{${attrs.join(' ')}}` : '';
+
+    let md = `:::toggle${attrSuffix}\n`;
+
+    // Extract summary from the FIRST child in toggle-content
+    // The editor renders all children (including the summary) in toggle-content
+    // For toggle headings, first child is a heading; for toggle lists, first child is a paragraph
+    const contentDiv = el.querySelector('.toggle-content');
+    let summary = '';
+    const bodyLines: string[] = [];
+
+    if (contentDiv) {
+      const children = Array.from(contentDiv.children);
+      if (children.length > 0) {
+        // First child is the summary
+        const firstChild = children[0];
+        summary = firstChild.textContent?.trim() || '';
+
+        // For headings, prepend the heading marker per FORMAT.md
+        if (asHeading) {
+          const headingMarker = `${'#'.repeat(parseInt(asHeading, 10))} `;
+          summary = `${headingMarker}${summary}`;
+        }
+
+        // Remaining children are the body - convert each to markdown using turndown
+        const bodyTurndown = new TurndownService({
+          headingStyle: 'atx',
+          bulletListMarker: '-',
+          codeBlockStyle: 'fenced',
+        });
+        for (let i = 1; i < children.length; i++) {
+          const child = children[i];
+          const html = child.outerHTML;
+          const converted = bodyTurndown.turndown(html).trim();
+          if (converted) {
+            bodyLines.push(converted);
+          }
+        }
+      }
+    }
+
+    md += `${summary}\n\n`;
+
+    for (const line of bodyLines) {
+      md += `${line}\n`;
+    }
+
+    md += ':::\n';
+    return md;
   },
 });
 
@@ -239,6 +310,7 @@ export const Editor: React.FC<EditorProps> = ({
         SlashMenuExtension,
         ClickToCreateParagraph,
         CalloutNode,
+        ToggleNode,
         ...(yDoc
           ? [
               Collaboration.configure({

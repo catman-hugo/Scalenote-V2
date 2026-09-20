@@ -11,6 +11,7 @@ import { Suggestion } from '@tiptap/suggestion';
 import { ReactRenderer } from '@tiptap/react';
 import { SlashMenuDropdown } from './SlashMenuDropdown';
 import { CALLOUT_TYPES, CALLOUT_ICONS } from './CalloutNode';
+import { TOGGLE_HEADING_LEVELS } from './ToggleNode';
 
 interface SlashCommand {
   id: string;
@@ -37,8 +38,40 @@ const getCommands = (): SlashCommand[] => {
       }).run(),
   }));
 
+  const toggleCommands: SlashCommand[] = [
+    {
+      id: 'toggle-list',
+      label: 'Toggle List',
+      description: 'Insert a collapsible toggle list (first line is summary)',
+      icon: '▸',
+      execute: ({ editor, range }) =>
+        editor.chain().focus().deleteRange(range).insertContent({
+          type: 'toggle',
+          attrs: {
+            asHeading: null,
+            open: false,
+          },
+        }).run(),
+    },
+    ...TOGGLE_HEADING_LEVELS.map((level) => ({
+      id: `toggle-h${level}`,
+      label: `Toggle Heading ${level}`,
+      description: `Insert a collapsible heading ${level} (first line is heading)`,
+      icon: `H${level}`,
+      execute: ({ editor, range }) =>
+        editor.chain().focus().deleteRange(range).insertContent({
+          type: 'toggle',
+          attrs: {
+            asHeading: level,
+            open: false,
+          },
+        }).run(),
+    })),
+  ];
+
   return [
     ...calloutCommands,
+    ...toggleCommands,
     {
       id: 'heading1',
     label: 'Heading 1',
