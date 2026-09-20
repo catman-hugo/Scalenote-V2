@@ -269,6 +269,6 @@ Update this continuously while working, not just at the end. Each section below 
 - [ ] `npm run tauri build` produces a working Windows installer (verified on a VM/second machine, not just "it compiled") — status:
 
 ## Known issues / honest notes to Ron
-(Anything that doesn't fit neatly above — surprises, things that took longer than expected, things you'd do differently with more time.)
+- [ ] Tiptap security upgrade (mergeAttributes prototype pollution advisory) is outstanding; requires a coordinated major-version upgrade across the dependency tree (deferred for separate verification pass) — status: partial
 
 - [ ] `DECISIONS.md` exists and has an entry for every mandatory case listed in CLAUDE.md — status:

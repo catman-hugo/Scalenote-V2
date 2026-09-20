@@ -215,7 +215,7 @@ describe('CalloutNode format round-trip', () => {
       { collapse: 'collapsed', expected: null },
     ];
 
-    const parseRules = CalloutNode.config.parseHTML?.();
+    const parseRules = (CalloutNode.config.parseHTML as any)?.();
     const rule = parseRules?.find((r: any) => r.tag === 'div[data-type="callout"]');
 
     expect(rule).toBeDefined();
@@ -228,7 +228,7 @@ describe('CalloutNode format round-trip', () => {
       div.setAttribute('data-collapse', collapse || '');
       div.setAttribute('data-title', 'Test');
 
-      const attrs = rule!.getAttrs(div);
+      const attrs = (rule as any)!.getAttrs(div);
       expect(attrs.collapse).toBe(expected);
     }
   });
@@ -247,10 +247,10 @@ describe('CalloutNode format round-trip', () => {
         title: 'Test',
       };
 
-      const result = CalloutNode.config.renderHTML?.({ HTMLAttributes });
+      const result = (CalloutNode.config.renderHTML as any)?.({ HTMLAttributes });
 
       expect(result).toBeDefined();
-      const attrs = result![1];
+      const attrs = (result as any)[1];
       expect(attrs['data-collapse']).toBe(expected);
     }
   });
