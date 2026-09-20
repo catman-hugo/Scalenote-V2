@@ -155,6 +155,11 @@ turndown.addRule('toggle', {
           bulletListMarker: '-',
           codeBlockStyle: 'fenced',
         });
+        // Fix turndown's bullet list spacing: it outputs "-   Item" (3 spaces) instead of "- Item" (1 space)
+        bodyTurndown.addRule('fixBulletSpacing', {
+          filter: 'ul',
+          replacement: (content) => content.replace(/^(\s*)-\s{2,}/gm, '$1- '),
+        });
         for (let i = 1; i < children.length; i++) {
           const child = children[i];
           const html = child.outerHTML;
@@ -166,7 +171,13 @@ turndown.addRule('toggle', {
       }
     }
 
-    md += `${summary}\n\n`;
+    // Per FORMAT.md: exactly one blank line after opening, then summary, then blank line, then body
+    // If summary is empty, we still need exactly one blank line
+    if (summary) {
+      md += `${summary}\n\n`;
+    } else {
+      md += '\n';
+    }
 
     for (const line of bodyLines) {
       md += `${line}\n`;

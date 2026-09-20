@@ -30,7 +30,7 @@ function createTurndownWithToggleRule() {
     },
   });
 
-  // Turndown rule for toggle blocks (copied from Editor.tsx)
+  // Turndown rule for toggle blocks (copied from Editor.tsx - FIXED version)
   turndown.addRule('toggle', {
     filter: (node) => {
       return node.nodeName === 'DIV' && node.getAttribute && node.getAttribute('data-type') === 'toggle';
@@ -78,18 +78,29 @@ function createTurndownWithToggleRule() {
             bulletListMarker: '-',
             codeBlockStyle: 'fenced',
           });
+          // Fix turndown's bullet list spacing: it outputs "-   Item" (3 spaces) instead of "- Item" (1 space)
+          bodyTurndown.addRule('fixBulletSpacing', {
+            filter: 'ul',
+            replacement: (content) => content.replace(/^(\s*)-\s{2,}/gm, '$1- '),
+          });
           for (let i = 1; i < children.length; i++) {
             const child = children[i];
             const html = child.outerHTML;
-            const md = bodyTurndown.turndown(html).trim();
-            if (md) {
-              bodyLines.push(md);
+            const converted = bodyTurndown.turndown(html).trim();
+            if (converted) {
+              bodyLines.push(converted);
             }
           }
         }
       }
 
-      md += `${summary}\n\n`;
+      // Per FORMAT.md: exactly one blank line after opening, then summary, then blank line, then body
+      // If summary is empty, we still need exactly one blank line
+      if (summary) {
+        md += `${summary}\n\n`;
+      } else {
+        md += '\n';
+      }
 
       for (const line of bodyLines) {
         md += `${line}\n`;
@@ -236,6 +247,7 @@ Hidden body
 
     const markdown = turndown.turndown(html);
 
+    // Fixed: exactly one blank line after opening when summary is empty (per FORMAT.md)
     const expected = `:::toggle
 
 Just a body, no summary
@@ -283,8 +295,7 @@ Third paragraph
 
     const markdown = turndown.turndown(html);
 
-    // The body should preserve the list markdown format
-    // turndown converts <ul><li> to markdown list
+    // The body should preserve the list markdown format with single space after dash
     const expected = `:::toggle
 Toggle with list
 
