@@ -268,7 +268,8 @@ export const Editor: React.FC<EditorProps> = ({
     setRawText(content);
 
     // If the doc is newly loaded or empty, seed it with body or an empty paragraph
-    if (noteChanged && editor.isEmpty) {
+    // Check editor.isInitialized (editor is fully initialized) before using commands
+    if (noteChanged && editor.isEmpty && editor.isInitialized) {
       if (body.trim().length > 0) {
         editor.commands.setContent(md.render(body));
       } else {
@@ -292,7 +293,7 @@ export const Editor: React.FC<EditorProps> = ({
     } else {
       const { frontmatter: fm, body: newBody } = splitFrontmatter(rawText);
       frontmatterRef.current = fm;
-      if (editor) {
+      if (editor && editor.isInitialized) {
         editor.commands.setContent(md.render(newBody));
       }
       setMode('rich');
