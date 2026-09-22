@@ -502,6 +502,278 @@ fn arb_document() -> impl Strategy<Value = Document> {
     })
 }
 
+// -----------------------------------------------------------------------------
+// Cross-language compatibility tests
+// These test the EXACT markdown strings produced by the TypeScript turndown rule
+// in Editor.tsx, ensuring the Rust parser accepts them correctly.
+// -----------------------------------------------------------------------------
+
+#[test]
+fn test_parse_typescript_toggle_basic_list() {
+    // From: serializes a basic toggle list to correct markdown format
+    let md = r#"---
+id: test-id
+---
+
+:::toggle
+Summary line
+
+Body line 1
+Body line 2
+:::"#;
+
+    let parsed = parse(md);
+    assert_eq!(parsed.blocks.len(), 1);
+    match &parsed.blocks[0] {
+        Block::Toggle { as_heading, open, summary, body } => {
+            assert_eq!(*as_heading, None);
+            assert_eq!(*open, false);
+            assert_eq!(summary, "Summary line");
+            assert_eq!(body.as_slice(), &["Body line 1".to_string(), "Body line 2".to_string()][..]);
+        }
+        _ => panic!("Expected Toggle block"),
+    }
+}
+
+#[test]
+fn test_parse_typescript_toggle_open_attribute() {
+    // From: serializes a toggle list with open attribute (default expanded)
+    let md = r#"---
+id: test-id
+---
+
+:::toggle{open}
+Summary line
+
+Body visible by default
+:::"#;
+
+    let parsed = parse(md);
+    assert_eq!(parsed.blocks.len(), 1);
+    match &parsed.blocks[0] {
+        Block::Toggle { as_heading, open, summary, body } => {
+            assert_eq!(*as_heading, None);
+            assert_eq!(*open, true);
+            assert_eq!(summary, "Summary line");
+            assert_eq!(body.as_slice(), &["Body visible by default".to_string()][..]);
+        }
+        _ => panic!("Expected Toggle block"),
+    }
+}
+
+#[test]
+fn test_parse_typescript_toggle_heading_h2() {
+    // From: serializes a toggle heading h2 to correct markdown format
+    let md = r#"---
+id: test-id
+---
+
+:::toggle{as=h2}
+## Collapsible Heading
+
+Body content hidden until expanded
+:::"#;
+
+    let parsed = parse(md);
+    assert_eq!(parsed.blocks.len(), 1);
+    match &parsed.blocks[0] {
+        Block::Toggle { as_heading, open, summary, body } => {
+            assert_eq!(*as_heading, Some(2));
+            assert_eq!(*open, false);
+            assert_eq!(summary, "Collapsible Heading");
+            assert_eq!(body.as_slice(), &["Body content hidden until expanded".to_string()][..]);
+        }
+        _ => panic!("Expected Toggle block"),
+    }
+}
+
+#[test]
+fn test_parse_typescript_toggle_heading_h3_open() {
+    // From: serializes a toggle heading h3 with open attribute
+    let md = r#"---
+id: test-id
+---
+
+:::toggle{as=h3 open}
+### Default expanded heading
+
+Visible by default
+:::"#;
+
+    let parsed = parse(md);
+    assert_eq!(parsed.blocks.len(), 1);
+    match &parsed.blocks[0] {
+        Block::Toggle { as_heading, open, summary, body } => {
+            assert_eq!(*as_heading, Some(3));
+            assert_eq!(*open, true);
+            assert_eq!(summary, "Default expanded heading");
+            assert_eq!(body.as_slice(), &["Visible by default".to_string()][..]);
+        }
+        _ => panic!("Expected Toggle block"),
+    }
+}
+
+#[test]
+fn test_parse_typescript_toggle_heading_h4() {
+    // From: serializes a toggle heading h4
+    let md = r#"---
+id: test-id
+---
+
+:::toggle{as=h4}
+#### Small heading
+
+Hidden body
+:::"#;
+
+    let parsed = parse(md);
+    assert_eq!(parsed.blocks.len(), 1);
+    match &parsed.blocks[0] {
+        Block::Toggle { as_heading, open, summary, body } => {
+            assert_eq!(*as_heading, Some(4));
+            assert_eq!(*open, false);
+            assert_eq!(summary, "Small heading");
+            assert_eq!(body.as_slice(), &["Hidden body".to_string()][..]);
+        }
+        _ => panic!("Expected Toggle block"),
+    }
+}
+
+#[test]
+fn test_parse_typescript_toggle_multi_paragraph() {
+    // From: serializes a multi-paragraph toggle body
+    let md = r#"---
+id: test-id
+---
+
+:::toggle
+Multi-paragraph toggle
+
+First paragraph
+Second paragraph
+Third paragraph
+:::"#;
+
+    let parsed = parse(md);
+    assert_eq!(parsed.blocks.len(), 1);
+    match &parsed.blocks[0] {
+        Block::Toggle { as_heading, open, summary, body } => {
+            assert_eq!(*as_heading, None);
+            assert_eq!(*open, false);
+            assert_eq!(summary, "Multi-paragraph toggle");
+            assert_eq!(body.as_slice(), &["First paragraph".to_string(), "Second paragraph".to_string(), "Third paragraph".to_string()][..]);
+        }
+        _ => panic!("Expected Toggle block"),
+    }
+}
+
+#[test]
+fn test_parse_typescript_toggle_with_list_body() {
+    // From: serializes a toggle with nested block content (bullet list in body)
+    // Note: The Rust parser treats list items as plain text lines, not parsed as list blocks
+    // This is the expected behavior - the body is stored as raw lines
+    let md = r#"---
+id: test-id
+---
+
+:::toggle
+Toggle with list
+
+- Item 1
+- Item 2
+:::"#;
+
+    let parsed = parse(md);
+    assert_eq!(parsed.blocks.len(), 1);
+    match &parsed.blocks[0] {
+        Block::Toggle { as_heading, open, summary, body } => {
+            assert_eq!(*as_heading, None);
+            assert_eq!(*open, false);
+            assert_eq!(summary, "Toggle with list");
+            assert_eq!(body.as_slice(), &["- Item 1".to_string(), "- Item 2".to_string()][..]);
+        }
+        _ => panic!("Expected Toggle block"),
+    }
+}
+
+#[test]
+fn test_parse_typescript_toggle_compatibility_suite_1() {
+    // From: matches Rust serializer output for toggle list (default collapsed)
+    let md = r#"---
+id: test-id
+---
+
+:::toggle
+A collapsible block
+
+Everything after it is the collapsed body.
+:::"#;
+
+    let parsed = parse(md);
+    assert_eq!(parsed.blocks.len(), 1);
+    match &parsed.blocks[0] {
+        Block::Toggle { as_heading, open, summary, body } => {
+            assert_eq!(*as_heading, None);
+            assert_eq!(*open, false);
+            assert_eq!(summary, "A collapsible block");
+            assert_eq!(body.as_slice(), &["Everything after it is the collapsed body.".to_string()][..]);
+        }
+        _ => panic!("Expected Toggle block"),
+    }
+}
+
+#[test]
+fn test_parse_typescript_toggle_compatibility_suite_2() {
+    // From: matches Rust serializer output for toggle heading h2 (default collapsed)
+    let md = r#"---
+id: test-id
+---
+
+:::toggle{as=h2}
+## A collapsible heading
+
+Body content hidden until expanded.
+:::"#;
+
+    let parsed = parse(md);
+    assert_eq!(parsed.blocks.len(), 1);
+    match &parsed.blocks[0] {
+        Block::Toggle { as_heading, open, summary, body } => {
+            assert_eq!(*as_heading, Some(2));
+            assert_eq!(*open, false);
+            assert_eq!(summary, "A collapsible heading");
+            assert_eq!(body.as_slice(), &["Body content hidden until expanded.".to_string()][..]);
+        }
+        _ => panic!("Expected Toggle block"),
+    }
+}
+
+#[test]
+fn test_parse_typescript_toggle_compatibility_suite_3() {
+    // From: matches Rust serializer output for toggle with open attribute
+    let md = r#"---
+id: test-id
+---
+
+:::toggle{as=h2 open}
+## Default expanded
+
+Visible by default
+:::"#;
+
+    let parsed = parse(md);
+    assert_eq!(parsed.blocks.len(), 1);
+    match &parsed.blocks[0] {
+        Block::Toggle { as_heading, open, summary, body } => {
+            assert_eq!(*as_heading, Some(2));
+            assert_eq!(*open, true);
+            assert_eq!(summary, "Default expanded");
+            assert_eq!(body.as_slice(), &["Visible by default".to_string()][..]);
+        }
+        _ => panic!("Expected Toggle block"),
+    }
+}
+
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(50))]
 
